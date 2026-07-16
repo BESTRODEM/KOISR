@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>KOISR 관리자 시스템</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --navy:#1a3a5c; --navy-dark:#0d2440; --navy-mid:#2a5280;
+  --green:#2e7d4f; --green-lt:#4caf72; --green-pale:#e8f5ee;
+  --red:#c0392b;   --red-pale:#fdecea;
+  --orange:#d4821a; --purple:#8e44ad;
+  --gray-100:#f7f8fa; --gray-200:#eef0f4; --gray-400:#aab4c0;
+  --gray-500:#7a8799; --gray-700:#3e4f62;
+  --white:#fff; --text:#1e2d3d;
+  --sidebar:240px;
+}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-100);color:var(--text);font-size:14px;line-height:1.6;}
+::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-thumb{background:var(--gray-400);border-radius:3px;}
+
+/* ─── LOGIN ─── */
+#loginScreen{position:fixed;inset:0;background:linear-gradient(135deg,var(--navy-dark),var(--navy));display:flex;align-items:center;justify-content:center;z-index:9999;}
+.login-box{background:white;border-radius:14px;padding:48px 44px;width:380px;box-shadow:0 24px 64px rgba(0,0,0,.3);text-align:center;}
+.login-logo{width:60px;height:60px;background:var(--navy);border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;}
+.login-logo svg{height:34px;width:34px;}
+.login-box h1{font-size:20px;font-weight:700;color:var(--navy);margin-bottom:4px;}
+.login-box .sub{font-size:13px;color:var(--gray-500);margin-bottom:28px;}
+.login-input{width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:14px;font-family:inherit;margin-bottom:12px;transition:border-color .18s;outline:none;}
+.login-input:focus{border-color:var(--green);}
+.login-btn{width:100%;padding:13px;background:var(--navy);color:white;border:none;border-radius:7px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;transition:background .18s;}
+.login-btn:hover{background:var(--navy-mid);}
+.login-error{color:var(--red);font-size:13px;margin-top:10px;display:none;}
+.login-hint{margin-top:16px;font-size:11px;color:#bbb;}
+
+/* ─── LAYOUT ─── */
+#appLayout{display:none;}
+.layout{display:flex;min-height:100vh;}
+
+/* ─── SIDEBAR ─── */
+.sidebar{width:var(--sidebar);background:var(--navy-dark);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:width .2s;}
+.sidebar-brand{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,.08);}
+.sidebar-brand .kr{font-size:13px;font-weight:700;color:white;line-height:1.3;}
+.sidebar-brand .en{font-size:9px;color:var(--green-lt);letter-spacing:.6px;margin-top:2px;}
+.sidebar-brand .badge{display:inline-block;background:rgba(46,125,79,.3);border:1px solid rgba(76,175,114,.4);color:var(--green-lt);font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:10px;margin-top:8px;}
+.sidebar-user{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px;}
+.sidebar-avatar{width:32px;height:32px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;flex-shrink:0;}
+.sidebar-user-info .name{font-size:13px;font-weight:600;color:white;}
+.sidebar-user-info .role-badge{font-size:10px;color:rgba(255,255,255,.5);}
+.sidebar-nav{flex:1;padding:12px 0;overflow-y:auto;}
+.nav-section{font-size:9.5px;font-weight:700;color:rgba(255,255,255,.25);letter-spacing:1.5px;text-transform:uppercase;padding:10px 20px 4px;}
+.sidebar-nav a{display:flex;align-items:center;gap:10px;padding:10px 20px;color:rgba(255,255,255,.6);text-decoration:none;font-size:13.5px;font-weight:500;transition:all .18s;border-left:3px solid transparent;}
+.sidebar-nav a:hover{background:rgba(255,255,255,.06);color:white;}
+.sidebar-nav a.active{background:rgba(46,125,79,.18);color:white;border-left-color:var(--green-lt);}
+.sidebar-nav a .icon{font-size:1.05rem;width:22px;text-align:center;}
+.sidebar-footer{padding:14px 20px;border-top:1px solid rgba(255,255,255,.08);}
+.sidebar-footer a{display:flex;align-items:center;gap:8px;color:rgba(255,255,255,.35);font-size:12.5px;text-decoration:none;transition:color .18s;margin-bottom:6px;}
+.sidebar-footer a:hover{color:rgba(255,255,255,.75);}
+
+/* ─── MAIN ─── */
+.main{margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{background:white;border-bottom:1px solid var(--gray-200);padding:0 32px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 6px rgba(0,0,0,.05);}
+.topbar-title{font-size:17px;font-weight:700;color:var(--navy);}
+.topbar-right{display:flex;align-items:center;gap:12px;}
+.topbar-user{font-size:13px;color:var(--gray-500);}
+.btn-logout{font-size:12px;color:var(--red);border:1px solid var(--red);background:none;border-radius:4px;padding:4px 12px;cursor:pointer;font-family:inherit;transition:all .18s;}
+.btn-logout:hover{background:var(--red);color:white;}
+.content{padding:28px 32px;flex:1;}
+
+/* ─── TABS ─── */
+.tab-section{display:none;}
+.tab-section.active{display:block;}
+
+/* ─── STAT CARDS ─── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.stat-card{background:white;border-radius:10px;padding:20px 22px;border:1px solid var(--gray-200);display:flex;align-items:center;gap:14px;}
+.stat-icon{width:46px;height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;}
+.bg-navy{background:rgba(26,58,92,.1);}
+.bg-green{background:var(--green-pale);}
+.bg-purple{background:rgba(142,68,173,.1);}
+.bg-orange{background:rgba(212,130,26,.1);}
+.stat-num{font-size:1.8rem;font-weight:800;color:var(--navy);line-height:1;}
+.stat-lbl{font-size:12px;color:var(--gray-500);margin-top:2px;}
+
+/* ─── CARDS ─── */
+.card{background:white;border-radius:10px;border:1px solid var(--gray-200);overflow:hidden;margin-bottom:22px;box-shadow:0 1px 6px rgba(0,0,0,.04);}
+.card-header{padding:16px 24px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;justify-content:space-between;background:white;}
+.card-title{font-size:15px;font-weight:700;color:var(--navy);}
+.card-body{padding:24px;}
+
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:6px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:all .18s;text-decoration:none;}
+.btn-primary{background:var(--navy);color:white;}
+.btn-primary:hover{background:var(--navy-mid);}
+.btn-success{background:var(--green);color:white;}
+.btn-success:hover{background:#236640;}
+.btn-danger{background:var(--red);color:white;}
+.btn-danger:hover{background:#a93226;}
+.btn-warning{background:var(--orange);color:white;}
+.btn-warning:hover{background:#b3700f;}
+.btn-outline{background:none;border:1.5px solid var(--gray-200);color:var(--gray-700);}
+.btn-outline:hover{border-color:var(--navy);color:var(--navy);}
+.btn-sm{padding:5px 11px;font-size:12px;}
+
+/* ─── TABLE ─── */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+th{background:var(--gray-100);padding:10px 14px;text-align:left;font-size:11.5px;font-weight:700;color:var(--gray-500);letter-spacing:.4px;text-transform:uppercase;border-bottom:2px solid var(--gray-200);white-space:nowrap;}
+td{padding:12px 14px;border-bottom:1px solid var(--gray-200);font-size:13.5px;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--gray-100);}
+.td-actions{display:flex;gap:6px;flex-wrap:wrap;}
+
+/* ─── TAGS ─── */
+.tag{display:inline-block;padding:2px 10px;border-radius:10px;font-size:11.5px;font-weight:700;white-space:nowrap;}
+.tag-admin{background:rgba(26,58,92,.12);color:var(--navy);}
+.tag-researcher{background:var(--green-pale);color:var(--green);}
+.tag-위원장{background:rgba(26,58,92,.12);color:var(--navy);}
+.tag-소장{background:var(--green-pale);color:var(--green);}
+.tag-연구위원{background:rgba(142,68,173,.1);color:var(--purple);}
+.tag-연구원{background:rgba(212,130,26,.1);color:var(--orange);}
+
+/* ─── FORM ─── */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.form-row.cols3{grid-template-columns:1fr 1fr 1fr;}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:12.5px;font-weight:600;color:var(--gray-700);margin-bottom:6px;}
+.form-group .req{color:var(--red);}
+.form-control{width:100%;padding:10px 13px;border:1.5px solid var(--gray-200);border-radius:6px;font-size:14px;font-family:inherit;color:var(--text);background:var(--gray-100);transition:border-color .18s,box-shadow .18s;outline:none;}
+.form-control:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(46,125,79,.1);background:white;}
+select.form-control{cursor:pointer;}
+textarea.form-control{resize:vertical;min-height:88px;}
+.form-note{font-size:11.5px;color:var(--gray-400);margin-top:4px;}
+.checkbox-group{display:flex;flex-wrap:wrap;gap:8px;}
+.checkbox-item{display:flex;align-items:center;gap:6px;padding:6px 12px;border:1.5px solid var(--gray-200);border-radius:6px;cursor:pointer;transition:all .18s;background:white;font-size:13px;user-select:none;}
+.checkbox-item:hover{border-color:var(--navy);}
+.checkbox-item.checked{background:var(--navy);color:white;border-color:var(--navy);}
+.checkbox-item input[type=checkbox]{width:14px;height:14px;accent-color:var(--navy);cursor:pointer;}
+
+/* ─── ALERT ─── */
+.alert{padding:12px 18px;border-radius:7px;margin-bottom:16px;font-size:13.5px;font-weight:500;display:none;}
+.alert.success{background:#e8f5ee;color:var(--green);border:1px solid rgba(46,125,79,.3);}
+.alert.error{background:var(--red-pale);color:var(--red);border:1px solid rgba(192,57,43,.3);}
+
+/* ─── MODAL ─── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:500;}
+.modal-overlay.open{display:flex;}
+.modal{background:white;border-radius:12px;padding:32px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.25);}
+.modal h2{font-size:17px;font-weight:700;color:var(--navy);margin-bottom:22px;padding-bottom:14px;border-bottom:2px solid var(--green);}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--gray-200);}
+
+/* ─── EMPTY STATE ─── */
+.empty-state{text-align:center;padding:50px 20px;color:var(--gray-400);}
+.empty-state .icon{font-size:2.5rem;margin-bottom:12px;}
+.empty-state p{font-size:14px;}
+
+/* ─── PROFILE CARD ─── */
+.profile-card{display:flex;gap:28px;align-items:flex-start;}
+.profile-avatar-big{width:90px;height:90px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.2rem;font-weight:700;color:white;flex-shrink:0;}
+
+/* ─── PASSWORD STRENGTH ─── */
+.pw-strength{height:4px;border-radius:2px;margin-top:6px;transition:all .3s;background:var(--gray-200);}
+
+/* ─── PHOTO UPLOAD ─── */
+.photo-upload-wrap{display:flex;align-items:center;gap:18px;padding:14px 16px;background:var(--gray-100);border-radius:8px;border:1px solid var(--gray-200);}
+.photo-circle{width:76px;height:76px;border-radius:50%;overflow:hidden;background:var(--navy);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid var(--gray-200);cursor:pointer;transition:opacity .18s;}
+.photo-circle:hover{opacity:.85;}
+.photo-circle img{width:100%;height:100%;object-fit:cover;display:none;}
+.photo-circle .initial{font-size:1.6rem;font-weight:700;color:white;}
+.photo-upload-info{flex:1;}
+.photo-upload-info .btns{display:flex;gap:8px;margin-bottom:6px;}
+.photo-note{font-size:11.5px;color:var(--gray-400);line-height:1.5;}
+
+@media(max-width:860px){
+  .sidebar{width:60px;}
+  .sidebar-brand .kr,.sidebar-brand .en,.sidebar-brand .badge,.sidebar-user-info,.nav-section,.sidebar-nav a span,.sidebar-footer a span{display:none;}
+  .sidebar-nav a{justify-content:center;padding:12px;}
+  .sidebar-nav a .icon{width:auto;font-size:1.3rem;}
+  .sidebar-user{justify-content:center;}
+  .main{margin-left:60px;}
+  .stats-row{grid-template-columns:1fr 1fr;}
+  .form-row,.form-row.cols3{grid-template-columns:1fr;}
+  .content{padding:20px 16px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ════════ LOGIN ════════ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="28" cy="28" r="27" fill="#0d2440"/>
+        <path d="M28 30 C18 20,10 23,12 32 C14 38,25 36,28 30Z" fill="#2e7d4f"/>
+        <path d="M28 30 C38 20,46 23,44 32 C42 38,31 36,28 30Z" fill="#2e7d4f" opacity=".7"/>
+        <path d="M28 30 C23 18,26 10,28 10 C30 10,33 18,28 30Z" fill="#4caf72"/>
+        <circle cx="28" cy="30" r="2.5" fill="white" opacity=".9"/>
+      </svg>
+    </div>
+    <h1>KOISR 인트라넷</h1>
+    <p class="sub">한국지속가능연구원 내부 관리 시스템</p>
+    <input type="text"     class="login-input" id="loginId" placeholder="로그인 ID" autocomplete="username"/>
+    <input type="password" class="login-input" id="loginPw" placeholder="비밀번호"  autocomplete="current-password"
+           onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="login-btn" onclick="doLogin()">로그인</button>
+    <div class="login-error" id="loginError">ID 또는 비밀번호가 올바르지 않습니다.</div>
+  </div>
+</div>
+
+<!-- ════════ APP ════════ -->
+<div id="appLayout">
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="kr">한국지속가능연구원</div>
+      <div class="en">KOISR INTRANET</div>
+      <div class="badge" id="sidebarRoleBadge">ADMIN</div>
+    </div>
+    <div class="sidebar-user">
+      <div class="sidebar-avatar" id="sidebarAvatar">A</div>
+      <div class="sidebar-user-info">
+        <div class="name" id="sidebarName">admin</div>
+        <div class="role-badge" id="sidebarRoleText">관리자</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <!-- Populated by JS based on role -->
+    </nav>
+    <div class="sidebar-footer">
+      <a href="koisr_homepage.html" target="_blank"><span>🌐</span><span>홈페이지 열기</span></a>
+      <a href="#" onclick="doLogout();return false;"><span>🚪</span><span>로그아웃</span></a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">대시보드</div>
+      <div class="topbar-right">
+        <span class="topbar-user" id="topbarUser"></span>
+        <button class="btn-logout" onclick="doLogout()">로그아웃</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── DASHBOARD ── -->
+      <div id="tab-dashboard" class="tab-section active">
+        <div class="stats-row" id="statsRow"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+          <div class="card">
+            <div class="card-header"><span class="card-title">최근 논문</span>
+              <button class="btn btn-outline btn-sm" onclick="showTab('publications',null)">전체 보기</button></div>
+            <div class="card-body" id="dashRecentPubs"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">구성원 현황</span></div>
+            <div class="card-body" id="dashMembers"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MEMBERS ── -->
+      <div id="tab-members" class="tab-section">
+        <div class="alert" id="memberAlert"></div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">구성원 목록</span>
+            <button class="btn btn-primary" onclick="openMemberModal()">+ 구성원 추가</button></div>
+          <div class="table-wrap" style="padding:0;">
+            <table><thead><tr><th>#</th><th>이름</th><th>직책</th><th>소속</th><th>학위</th><th>이메일</th><th>논문</th><th>관리</th></tr></thead>
+            <tbody id="membersTbody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ACCOUNTS ── -->
+      <div id="tab-accounts" class="tab-section">
+        <div class="alert" id="accountAlert"></div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">계정 목록</span>
+            <button class="btn btn-primary" onclick="openAccountModal()">+ 계정 추가</button></div>
+          <div class="table-wrap" style="padding:0;">
+            <table><thead><tr><th>로그인 ID</th><th>표시 이름</th><th>권한</th><th>연결 구성원</th><th>관리</th></tr></thead>
+            <tbody id="accountsTbody"></tbody></table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body" style="background:var(--gray-100);border-radius:8px;">
+            <p style="font-size:13px;color:var(--gray-500);line-height:1.8;">
+              <strong style="color:var(--navy);">💡 계정 관리 안내</strong><br>
+              • <b>관리자</b> 계정은 모든 기능에 접근할 수 있습니다.<br>
+              • <b>연구원</b> 계정은 본인 프로필 수정 및 본인 논문 추가/삭제만 가능합니다.<br>
+              • 계정 추가 시 연결 구성원을 지정하면 해당 구성원 정보를 관리할 수 있습니다.<br>
+              • 비밀번호 재설정은 관리자만 가능합니다.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PUBLICATIONS (admin: all) ── -->
+      <div id="tab-publications" class="tab-section">
+        <div class="alert" id="pubAlert"></div>
+        <div class="card" style="margin-bottom:22px;">
+          <div class="card-header"><span class="card-title">논문 추가</span></div>
+          <div class="card-body">
+            <div class="form-row"><div class="form-group" style="grid-column:1/-1;">
+              <label>논문 제목 <span class="req">*</span></label>
+              <input type="text" class="form-control" id="pubTitle" placeholder="논문 제목을 입력하세요"/>
+            </div></div>
+            <div class="form-row cols3">
+              <div class="form-group">
+                <label>학술지명 <span class="req">*</span></label>
+                <input type="text" class="form-control" id="pubJournal" placeholder="예: Tourism Management"/>
+              </div>
+              <div class="form-group">
+                <label>출판 연도 <span class="req">*</span></label>
+                <input type="number" class="form-control" id="pubYear" min="1990" max="2099" placeholder="2025"/>
+              </div>
+              <div class="form-group">
+                <label>권·호·페이지</label>
+                <input type="text" class="form-control" id="pubVolume" placeholder="Vol.45, pp.123-135"/>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>DOI</label>
+                <input type="text" class="form-control" id="pubDoi" placeholder="10.1016/j.tourman.2025.01.001"/>
+                <div class="form-note">입력 시 자동 링크 생성</div>
+              </div>
+              <div class="form-group">
+                <label>논문 링크 (DOI 없을 때)</label>
+                <input type="url" class="form-control" id="pubLink" placeholder="https://..."/>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>소속 저자 선택 <span class="req">*</span></label>
+              <div class="checkbox-group" id="authorCheckboxes"></div>
+            </div>
+            <div class="form-group">
+              <label>외부 공동저자</label>
+              <input type="text" class="form-control" id="pubExtraAuthors" placeholder="예: Kim J.H., 홍길동  (쉼표 구분)"/>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+              <button class="btn btn-outline" onclick="clearPubForm()">초기화</button>
+              <button class="btn btn-success" onclick="savePub()">논문 저장</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">등록 논문 목록</span>
+            <span id="pubCount" style="font-size:13px;color:var(--gray-500);"></span></div>
+          <div class="table-wrap" style="padding:0;">
+            <table><thead><tr><th>연도</th><th>논문 제목</th><th>학술지</th><th>저자</th><th>링크</th><th>관리</th></tr></thead>
+            <tbody id="pubsTbody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MY PROFILE (researcher) ── -->
+      <div id="tab-profile" class="tab-section">
+        <div class="alert" id="profileAlert"></div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">내 프로필</span></div>
+          <div class="card-body">
+            <!-- 사진 업로드 -->
+            <div class="form-group">
+              <label>프로필 사진</label>
+              <div class="photo-upload-wrap">
+                <div class="photo-circle" id="myPhotoCircle" onclick="document.getElementById('myPhotoInput').click()">
+                  <img id="myPhotoImg" src="" alt=""/>
+                  <span class="initial" id="myPhotoInitial">?</span>
+                </div>
+                <div class="photo-upload-info">
+                  <div class="btns">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('myPhotoInput').click()">📷 사진 선택</button>
+                    <button type="button" class="btn btn-danger btn-sm" id="myPhotoRemoveBtn" onclick="removeMyPhoto()" style="display:none;">삭제</button>
+                  </div>
+                  <p class="photo-note">JPG · PNG · WEBP 지원<br>자동으로 200×200px로 압축됩니다.<br>저장 버튼을 눌러야 반영됩니다.</p>
+                </div>
+              </div>
+              <input type="file" id="myPhotoInput" accept="image/*" style="display:none;" onchange="handleMyPhotoSelect(this)"/>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>이름</label>
+                <input type="text" class="form-control" id="myName" readonly style="background:#f0f0f0;cursor:not-allowed;"/>
+              </div>
+              <div class="form-group">
+                <label>직책</label>
+                <input type="text" class="form-control" id="myRole" readonly style="background:#f0f0f0;cursor:not-allowed;"/>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>소속</label>
+                <input type="text" class="form-control" id="myAffiliation" placeholder="예: 경희대학교 교수"/>
+              </div>
+              <div class="form-group">
+                <label>학위</label>
+                <input type="text" class="form-control" id="myDegree" placeholder="예: 관광학 박사"/>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>이메일</label>
+              <input type="email" class="form-control" id="myEmail" placeholder="name@koisr.or.kr"/>
+            </div>
+            <div class="form-group">
+              <label>소개</label>
+              <textarea class="form-control" id="myBio" placeholder="연구 관심사, 주요 연구 분야 등을 입력하세요."></textarea>
+            </div>
+            <div style="display:flex;justify-content:flex-end;">
+              <button class="btn btn-success" onclick="saveMyProfile()">프로필 저장</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MY PUBLICATIONS (researcher) ── -->
+      <div id="tab-mypubs" class="tab-section">
+        <div class="alert" id="myPubAlert"></div>
+        <div class="card" style="margin-bottom:22px;">
+          <div class="card-header"><span class="card-title">논문 추가</span></div>
+          <div class="card-body">
+            <div class="form-group">
+              <label>논문 제목 <span class="req">*</span></label>
+              <input type="text" class="form-control" id="myPubTitle" placeholder="논문 제목"/>
+            </div>
+            <div class="form-row cols3">
+              <div class="form-group">
+                <label>학술지명 <span class="req">*</span></label>
+                <input type="text" class="form-control" id="myPubJournal" placeholder="Tourism Management"/>
+              </div>
+              <div class="form-group">
+                <label>출판 연도 <span class="req">*</span></label>
+                <input type="number" class="form-control" id="myPubYear" min="1990" max="2099" placeholder="2025"/>
+              </div>
+              <div class="form-group">
+                <label>권·호·페이지</label>
+                <input type="text" class="form-control" id="myPubVolume" placeholder="Vol.45, pp.123-135"/>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>DOI</label>
+                <input type="text" class="form-control" id="myPubDoi" placeholder="10.1016/..."/>
+              </div>
+              <div class="form-group">
+                <label>논문 링크</label>
+                <input type="url" class="form-control" id="myPubLink" placeholder="https://..."/>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>공동저자 (본인 외)</label>
+              <input type="text" class="form-control" id="myPubCoAuthors" placeholder="예: 이계희, Kim J.H.  (쉼표 구분)"/>
+              <div class="form-note">소속 연구원은 아래에서 선택하세요.</div>
+            </div>
+            <div class="form-group">
+              <label>소속 공동저자</label>
+              <div class="checkbox-group" id="myAuthorCheckboxes"></div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+              <button class="btn btn-outline" onclick="clearMyPubForm()">초기화</button>
+              <button class="btn btn-success" onclick="saveMyPub()">논문 저장</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">내 논문 목록</span>
+            <span id="myPubCount" style="font-size:13px;color:var(--gray-500);"></span></div>
+          <div class="table-wrap" style="padding:0;">
+            <table><thead><tr><th>연도</th><th>논문 제목</th><th>학술지</th><th>저자</th><th>링크</th><th>관리</th></tr></thead>
+            <tbody id="myPubsTbody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── NEWS ── -->
+      <div id="tab-news" class="tab-section">
+        <div class="alert" id="newsAlert"></div>
+        <div class="card" style="margin-bottom:22px;">
+          <div class="card-header"><span class="card-title">공지사항 추가</span></div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label>제목 <span class="req">*</span></label>
+                <input type="text" class="form-control" id="newsTitle" placeholder="공지 제목"/>
+              </div>
+              <div class="form-group">
+                <label>날짜 <span class="req">*</span></label>
+                <input type="date" class="form-control" id="newsDate"/>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>분류</label>
+                <select class="form-control" id="newsCategory">
+                  <option>주요 뉴스</option><option>세미나</option><option>연구 발표</option>
+                  <option>채용 공고</option><option>국제협력</option><option>공지사항</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>주요 뉴스로 표시</label>
+                <select class="form-control" id="newsFeatured">
+                  <option value="0">아니오</option><option value="1">예 (메인 노출)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>내용 요약</label>
+              <textarea class="form-control" id="newsExcerpt" placeholder="공지 내용 요약"></textarea>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+              <button class="btn btn-outline" onclick="clearNewsForm()">초기화</button>
+              <button class="btn btn-success" onclick="saveNews()">공지 저장</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">공지사항 목록</span></div>
+          <div class="table-wrap" style="padding:0;">
+            <table><thead><tr><th>날짜</th><th>분류</th><th>제목</th><th>주요</th><th>관리</th></tr></thead>
+            <tbody id="newsTbody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SETTINGS (my password) ── -->
+      <div id="tab-settings" class="tab-section">
+        <div class="card" style="max-width:440px;">
+          <div class="card-header"><span class="card-title">내 비밀번호 변경</span></div>
+          <div class="card-body">
+            <div class="alert" id="pwAlert"></div>
+            <div class="form-group">
+              <label>현재 비밀번호</label>
+              <input type="password" class="form-control" id="pwCurrent"/>
+            </div>
+            <div class="form-group">
+              <label>새 비밀번호</label>
+              <input type="password" class="form-control" id="pwNew" oninput="checkPwStrength(this.value)"/>
+              <div class="pw-strength" id="pwStrengthBar"></div>
+              <div class="form-note" id="pwStrengthText"></div>
+            </div>
+            <div class="form-group">
+              <label>새 비밀번호 확인</label>
+              <input type="password" class="form-control" id="pwConfirm"/>
+            </div>
+            <button class="btn btn-primary" onclick="changeMyPw()">비밀번호 변경</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </main>
+</div><!-- /layout -->
+</div><!-- /appLayout -->
+
+<!-- ════════ MEMBER MODAL ════════ -->
+<div class="modal-overlay" id="memberModal" onclick="if(event.target===this)closeMemberModal()">
+  <div class="modal">
+    <h2 id="memberModalTitle">구성원 추가</h2>
+    <input type="hidden" id="editMemberId"/>
+    <!-- 사진 업로드 -->
+    <div class="form-group">
+      <label>프로필 사진</label>
+      <div class="photo-upload-wrap">
+        <div class="photo-circle" id="mPhotoCircle" onclick="document.getElementById('mPhotoInput').click()">
+          <img id="mPhotoImg" src="" alt=""/>
+          <span class="initial" id="mPhotoInitial">?</span>
+        </div>
+        <div class="photo-upload-info">
+          <div class="btns">
+            <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('mPhotoInput').click()">📷 사진 선택</button>
+            <button type="button" class="btn btn-danger btn-sm" id="mPhotoRemoveBtn" onclick="removeMemberPhoto()" style="display:none;">삭제</button>
+          </div>
+          <p class="photo-note">JPG · PNG · WEBP 지원<br>자동으로 200×200px로 압축됩니다.</p>
+        </div>
+      </div>
+      <input type="file" id="mPhotoInput" accept="image/*" style="display:none;" onchange="handleMemberPhotoSelect(this)"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>이름 <span class="req">*</span></label>
+        <input type="text" class="form-control" id="mName" placeholder="홍길동"/>
+      </div>
+      <div class="form-group">
+        <label>직책 <span class="req">*</span></label>
+        <select class="form-control" id="mRole">
+          <option>위원장</option><option>소장</option><option>연구위원</option><option>연구원</option><option>기타</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>소속</label>
+        <input type="text" class="form-control" id="mAffiliation" placeholder="예: 경희대학교 교수"/>
+      </div>
+      <div class="form-group">
+        <label>학위</label>
+        <input type="text" class="form-control" id="mDegree" placeholder="예: 관광학 박사"/>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>이메일</label>
+        <input type="email" class="form-control" id="mEmail" placeholder="name@koisr.or.kr"/>
+      </div>
+      <div class="form-group">
+        <label>아바타 색상</label>
+        <input type="color" class="form-control" id="mColor" value="#1a3a5c" style="height:42px;cursor:pointer;"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>소개</label>
+      <textarea class="form-control" id="mBio" placeholder="연구 관심사, 소개 등"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeMemberModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveMember()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ ACCOUNT MODAL ════════ -->
+<div class="modal-overlay" id="accountModal" onclick="if(event.target===this)closeAccountModal()">
+  <div class="modal">
+    <h2 id="accountModalTitle">계정 추가</h2>
+    <input type="hidden" id="editAccountId"/>
+    <div class="form-row">
+      <div class="form-group">
+        <label>로그인 ID <span class="req">*</span></label>
+        <input type="text" class="form-control" id="aUsername" placeholder="예: lee.kyehee" autocomplete="off"/>
+        <div class="form-note">영문·숫자·점(.)만 사용 권장</div>
+      </div>
+      <div class="form-group">
+        <label>표시 이름 <span class="req">*</span></label>
+        <input type="text" class="form-control" id="aDisplayName" placeholder="예: 이계희"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>비밀번호 <span class="req" id="aPwRequired">*</span></label>
+      <input type="password" class="form-control" id="aPassword" placeholder="비밀번호" autocomplete="new-password"/>
+      <div class="form-note" id="aPwNote">수정 시 비워두면 기존 비밀번호가 유지됩니다.</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>권한</label>
+        <select class="form-control" id="aRole" onchange="toggleMemberLink()">
+          <option value="researcher">연구원 (본인 데이터만 관리)</option>
+          <option value="admin">관리자 (전체 접근)</option>
+        </select>
+      </div>
+      <div class="form-group" id="aMemberGroup">
+        <label>연결 구성원</label>
+        <select class="form-control" id="aMemberId">
+          <option value="">-- 없음 --</option>
+        </select>
+        <div class="form-note">연구원 계정: 해당 구성원을 선택하세요.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAccountModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveAccount()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ PW RESET MODAL ════════ -->
+<div class="modal-overlay" id="pwResetModal" onclick="if(event.target===this)closePwResetModal()">
+  <div class="modal" style="max-width:400px;">
+    <h2>비밀번호 재설정</h2>
+    <p id="pwResetTarget" style="font-size:13.5px;color:var(--gray-500);margin-bottom:18px;"></p>
+    <input type="hidden" id="pwResetUserId"/>
+    <div class="form-group">
+      <label>새 비밀번호 <span class="req">*</span></label>
+      <input type="password" class="form-control" id="pwResetNew" placeholder="새 비밀번호" autocomplete="new-password"/>
+    </div>
+    <div class="form-group">
+      <label>새 비밀번호 확인 <span class="req">*</span></label>
+      <input type="password" class="form-control" id="pwResetConfirm" placeholder="확인"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closePwResetModal()">취소</button>
+      <button class="btn btn-warning" onclick="confirmPwReset()">비밀번호 재설정</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   STORAGE KEYS & DEFAULT DATA
+══════════════════════════════════════ */
+const DB_KEY    = 'koisr_db';
+const USERS_KEY = 'koisr_users';
+const SESS_KEY  = 'koisr_session';
+
+const DEFAULT_MEMBERS = [
+  {id:1,name:"이계희",role:"위원장", affiliation:"경희대학교 교수",degree:"관광학 박사",email:"",color:"#1a3a5c",bio:""},
+  {id:2,name:"유재호",role:"소장",   affiliation:"관광학 박사",    degree:"",          email:"",color:"#2e7d4f",bio:""},
+  {id:3,name:"백규리",role:"연구위원",affiliation:"우송대학교 교수",degree:"관광학 박사",email:"",color:"#8e44ad",bio:""},
+  {id:4,name:"김경원",role:"연구위원",affiliation:"경운대학교 교수",degree:"관광학 박사",email:"",color:"#c0392b",bio:""},
+  {id:5,name:"임수이",role:"연구원", affiliation:"관광학 박사",    degree:"",          email:"",color:"#d4821a",bio:""},
+  {id:6,name:"우민아",role:"연구원", affiliation:"관광학 박사",    degree:"",          email:"",color:"#1a7a8a",bio:""},
+  {id:7,name:"이영학",role:"연구원", affiliation:"관광학 박사",    degree:"",          email:"",color:"#34495e",bio:""},
+  {id:8,name:"박경진",role:"연구원", affiliation:"관광학 박사",    degree:"",          email:"",color:"#2e86ab",bio:""},
+];
+
+const DEFAULT_USERS = [
+  {id:1, username:"admin", password:"koisr2024", role:"admin", memberId:null, displayName:"관리자"}
+];
+
+/* ── 데이터 접근 ── */
+function getDB()    { try{const s=localStorage.getItem(DB_KEY);    if(s)return JSON.parse(s);}catch(e){} return {members:[...DEFAULT_MEMBERS],publications:[],news:[]}; }
+function saveDB(d)  { localStorage.setItem(DB_KEY, JSON.stringify(d)); }
+function getUsers() { try{const s=localStorage.getItem(USERS_KEY); if(s)return JSON.parse(s);}catch(e){} return [...DEFAULT_USERS]; }
+function saveUsers(u){ localStorage.setItem(USERS_KEY, JSON.stringify(u)); }
+function nextId(arr){ return arr.length ? Math.max(...arr.map(i=>i.id||0))+1 : 1; }
+
+/* ── 현재 로그인 사용자 ── */
+let currentUser = null;
+function getSession(){ try{const s=sessionStorage.getItem(SESS_KEY); if(s)return JSON.parse(s);}catch(e){} return null; }
+function setSession(u){ sessionStorage.setItem(SESS_KEY, JSON.stringify(u)); }
+function isAdmin()    { return currentUser && currentUser.role==='admin'; }
+
+/* ══════════════════════════════════════
+   인증
+══════════════════════════════════════ */
+function doLogin(){
+  const id = document.getElementById('loginId').value.trim();
+  const pw = document.getElementById('loginPw').value;
+  const users = getUsers();
+  const user  = users.find(u => u.username===id && u.password===pw);
+  if(!user){ document.getElementById('loginError').style.display='block'; return; }
+  document.getElementById('loginError').style.display='none';
+  setSession(user);
+  currentUser = user;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appLayout').style.display='block';
+  setupAppForUser(user);
+}
+
+function doLogout(){
+  sessionStorage.removeItem(SESS_KEY);
+  currentUser=null;
+  location.reload();
+}
+
+/* ══════════════════════════════════════
+   UI 초기화 (권한별)
+══════════════════════════════════════ */
+function setupAppForUser(user){
+  currentUser = user;
+  document.getElementById('topbarUser').textContent = user.displayName + ' 님';
+
+  // 사이드바 사용자 정보
+  document.getElementById('sidebarName').textContent = user.displayName;
+  document.getElementById('sidebarRoleText').textContent = user.role==='admin' ? '관리자' : '연구원';
+  document.getElementById('sidebarRoleBadge').textContent = user.role==='admin' ? 'ADMIN' : 'USER';
+  document.getElementById('sidebarAvatar').textContent = user.displayName[0];
+
+  // 사이드바 네비게이션 구성
+  const nav = document.getElementById('sidebarNav');
+  if(user.role==='admin'){
+    nav.innerHTML = `
+      <div class="nav-section">메인</div>
+      <a href="#" class="active" onclick="return showTab('dashboard',this)"><span class="icon">📊</span><span>대시보드</span></a>
+      <div class="nav-section">관리</div>
+      <a href="#" onclick="return showTab('members',this)"><span class="icon">👥</span><span>구성원 관리</span></a>
+      <a href="#" onclick="return showTab('accounts',this)"><span class="icon">🔑</span><span>계정 관리</span></a>
+      <a href="#" onclick="return showTab('publications',this)"><span class="icon">📄</span><span>논문 관리</span></a>
+      <a href="#" onclick="return showTab('news',this)"><span class="icon">📢</span><span>공지사항</span></a>
+      <div class="nav-section">설정</div>
+      <a href="#" onclick="return showTab('settings',this)"><span class="icon">🔒</span><span>비밀번호 변경</span></a>`;
+    showTab('dashboard', nav.querySelector('a'));
+  } else {
+    nav.innerHTML = `
+      <div class="nav-section">내 정보</div>
+      <a href="#" class="active" onclick="return showTab('profile',this)"><span class="icon">👤</span><span>내 프로필</span></a>
+      <a href="#" onclick="return showTab('mypubs',this)"><span class="icon">📄</span><span>내 논문</span></a>
+      <div class="nav-section">설정</div>
+      <a href="#" onclick="return showTab('settings',this)"><span class="icon">🔒</span><span>비밀번호 변경</span></a>`;
+    loadMyProfile();
+    showTab('profile', nav.querySelector('a'));
+  }
+
+  // 날짜 기본값
+  document.getElementById('newsDate').valueAsDate = new Date();
+  document.getElementById('pubYear').value = new Date().getFullYear();
+  document.getElementById('myPubYear').value = new Date().getFullYear();
+}
+
+/* ══════════════════════════════════════
+   탭 전환
+══════════════════════════════════════ */
+const TAB_TITLES = {
+  dashboard:'대시보드', members:'구성원 관리', accounts:'계정 관리',
+  publications:'논문 관리', news:'공지사항',
+  profile:'내 프로필', mypubs:'내 논문', settings:'비밀번호 변경'
+};
+function showTab(name, linkEl){
+  document.querySelectorAll('.tab-section').forEach(s=>s.classList.remove('active'));
+  const tab = document.getElementById('tab-'+name);
+  if(tab) tab.classList.add('active');
+  document.querySelectorAll('.sidebar-nav a').forEach(a=>a.classList.remove('active'));
+  if(linkEl) linkEl.classList.add('active');
+  document.getElementById('topbarTitle').textContent = TAB_TITLES[name]||'';
+
+  if(name==='dashboard')    renderDashboard();
+  if(name==='members')      renderMembersTable();
+  if(name==='accounts')     renderAccountsTable();
+  if(name==='publications') { renderAuthorCheckboxes('authorCheckboxes'); renderPubsTable(); }
+  if(name==='news')         renderNewsTable();
+  if(name==='profile')      loadMyProfile();
+  if(name==='mypubs')       { renderAuthorCheckboxes('myAuthorCheckboxes'); renderMyPubsTable(); }
+  return false;
+}
+
+/* ── 유틸 ── */
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showAlert(elId,type,msg){
+  const el=document.getElementById(elId);
+  if(!el)return;
+  el.className='alert '+type; el.textContent=msg; el.style.display='block';
+  setTimeout(()=>el.style.display='none',3500);
+}
+function getMemberName(id,members){ return (members.find(m=>m.id===id)||{}).name||''; }
+
+/* ══════════════════════════════════════
+   대시보드
+══════════════════════════════════════ */
+function renderDashboard(){
+  const d=getDB(); const users=getUsers();
+  const members=d.members||[]; const pubs=d.publications||[]; const news=d.news||[];
+  document.getElementById('statsRow').innerHTML=`
+    <div class="stat-card"><div class="stat-icon bg-navy">👥</div><div><div class="stat-num">${members.length}</div><div class="stat-lbl">구성원</div></div></div>
+    <div class="stat-card"><div class="stat-icon bg-green">📄</div><div><div class="stat-num">${pubs.length}</div><div class="stat-lbl">등록 논문</div></div></div>
+    <div class="stat-card"><div class="stat-icon bg-purple">🔑</div><div><div class="stat-num">${users.length}</div><div class="stat-lbl">계정</div></div></div>
+    <div class="stat-card"><div class="stat-icon bg-orange">📢</div><div><div class="stat-num">${news.length}</div><div class="stat-lbl">공지사항</div></div></div>`;
+
+  const recent=[...pubs].sort((a,b)=>(b.year||0)-(a.year||0)).slice(0,5);
+  document.getElementById('dashRecentPubs').innerHTML=recent.length
+    ? recent.map(p=>`<div style="padding:9px 0;border-bottom:1px solid var(--gray-200);">
+        <div style="font-size:13.5px;font-weight:600;color:var(--navy);line-height:1.4;">${esc(p.title)}</div>
+        <div style="font-size:12px;color:var(--gray-500);margin-top:2px;">${esc(p.journal||'')} · ${p.year||''}</div>
+      </div>`).join('')
+    : '<div class="empty-state"><div class="icon">📄</div><p>등록된 논문이 없습니다.</p></div>';
+
+  document.getElementById('dashMembers').innerHTML=members.map(m=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--gray-200);">
+      <div style="width:30px;height:30px;border-radius:50%;background:${m.color};display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;flex-shrink:0;">${m.name[0]}</div>
+      <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;">${esc(m.name)}</div>
+      <div style="font-size:11.5px;color:var(--gray-500);">${esc(m.affiliation||'')}</div></div>
+      <span class="tag tag-${esc(m.role)}">${esc(m.role)}</span>
+    </div>`).join('');
+}
+
+/* ══════════════════════════════════════
+   구성원 관리
+══════════════════════════════════════ */
+function renderMembersTable(){
+  const d=getDB(); const members=d.members||[]; const pubs=d.publications||[];
+  const tbody=document.getElementById('membersTbody');
+  if(!members.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="icon">👥</div><p>구성원이 없습니다.</p></div></td></tr>';return;}
+  tbody.innerHTML=members.map((m,i)=>{
+    const cnt=pubs.filter(p=>(p.authorIds||[]).includes(m.id)).length;
+    return `<tr>
+      <td>${i+1}</td>
+      <td><div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:${m.color};display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;">${m.name[0]}</div>
+        <strong>${esc(m.name)}</strong></div></td>
+      <td><span class="tag tag-${esc(m.role)}">${esc(m.role)}</span></td>
+      <td>${esc(m.affiliation||'')}</td>
+      <td>${esc(m.degree||'')}</td>
+      <td>${m.email?`<a href="mailto:${esc(m.email)}" style="color:var(--green);">${esc(m.email)}</a>`:'<span style="color:var(--gray-400);">-</span>'}</td>
+      <td><strong>${cnt}</strong>편</td>
+      <td><div class="td-actions">
+        <button class="btn btn-outline btn-sm" onclick="openMemberModal(${m.id})">수정</button>
+        <button class="btn btn-danger  btn-sm" onclick="deleteMember(${m.id})">삭제</button>
+      </div></td></tr>`;
+  }).join('');
+}
+
+function openMemberModal(id){
+  const d=getDB();
+  _memberPhotoData = null;
+  if(id){
+    const m=d.members.find(x=>x.id===id); if(!m)return;
+    document.getElementById('memberModalTitle').textContent='구성원 수정';
+    document.getElementById('editMemberId').value=m.id;
+    document.getElementById('mName').value=m.name||'';
+    document.getElementById('mRole').value=m.role||'연구원';
+    document.getElementById('mAffiliation').value=m.affiliation||'';
+    document.getElementById('mDegree').value=m.degree||'';
+    document.getElementById('mEmail').value=m.email||'';
+    document.getElementById('mColor').value=m.color||'#1a3a5c';
+    document.getElementById('mBio').value=m.bio||'';
+    setPhotoUI('mPhotoCircle','mPhotoImg','mPhotoInitial','mPhotoRemoveBtn',
+      m.photo||null, m.name[0], m.color||'#1a3a5c');
+  } else {
+    document.getElementById('memberModalTitle').textContent='구성원 추가';
+    document.getElementById('editMemberId').value='';
+    ['mName','mAffiliation','mDegree','mEmail','mBio'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('mRole').value='연구원';
+    document.getElementById('mColor').value='#1a3a5c';
+    setPhotoUI('mPhotoCircle','mPhotoImg','mPhotoInitial','mPhotoRemoveBtn',null,'?','#1a3a5c');
+  }
+  document.getElementById('memberModal').classList.add('open');
+}
+function closeMemberModal(){ document.getElementById('memberModal').classList.remove('open'); }
+
+function saveMember(){
+  const name=document.getElementById('mName').value.trim();
+  if(!name){alert('이름을 입력하세요.');return;}
+  const d=getDB(); const editId=parseInt(document.getElementById('editMemberId').value)||0;
+  const m={name,role:document.getElementById('mRole').value,affiliation:document.getElementById('mAffiliation').value.trim(),
+    degree:document.getElementById('mDegree').value.trim(),email:document.getElementById('mEmail').value.trim(),
+    color:document.getElementById('mColor').value,bio:document.getElementById('mBio').value.trim()};
+  // 사진 처리
+  if(_memberPhotoData==='__remove__')      m.photo=null;
+  else if(_memberPhotoData)                m.photo=_memberPhotoData;
+  if(editId){ const idx=d.members.findIndex(x=>x.id===editId); if(idx>-1)d.members[idx]={...d.members[idx],...m}; }
+  else { m.id=nextId(d.members); d.members.push(m); }
+  saveDB(d); closeMemberModal(); renderMembersTable();
+  showAlert('memberAlert','success',editId?'구성원 정보가 수정되었습니다.':'구성원이 추가되었습니다.');
+  renderDashboard();
+}
+
+function deleteMember(id){
+  if(!confirm('구성원을 삭제하시겠습니까?\n연결된 논문 저자 정보도 함께 제거됩니다.'))return;
+  const d=getDB();
+  d.members=d.members.filter(m=>m.id!==id);
+  d.publications=(d.publications||[]).map(p=>({...p,authorIds:(p.authorIds||[]).filter(aid=>aid!==id)}));
+  saveDB(d); renderMembersTable();
+  showAlert('memberAlert','success','삭제되었습니다.');
+  renderDashboard();
+}
+
+/* ══════════════════════════════════════
+   계정 관리
+══════════════════════════════════════ */
+function renderAccountsTable(){
+  const users=getUsers(); const d=getDB(); const members=d.members||[];
+  const tbody=document.getElementById('accountsTbody');
+  tbody.innerHTML=users.map(u=>{
+    const m=members.find(x=>x.id===u.memberId);
+    const isMe=currentUser&&currentUser.id===u.id;
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:${u.role==='admin'?'var(--navy)':'var(--green)'};display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;">${u.displayName[0]}</div>
+        <code style="font-size:13px;font-weight:600;">${esc(u.username)}</code>
+        ${isMe?'<span style="font-size:10px;background:#fff3e0;color:var(--orange);padding:1px 6px;border-radius:8px;font-weight:700;">나</span>':''}
+      </div></td>
+      <td>${esc(u.displayName)}</td>
+      <td><span class="tag tag-${u.role==='admin'?'admin':'researcher'}">${u.role==='admin'?'관리자':'연구원'}</span></td>
+      <td>${m?`<div style="display:flex;align-items:center;gap:6px;"><div style="width:20px;height:20px;border-radius:50%;background:${m.color};display:flex;align-items:center;justify-content:center;color:white;font-size:9px;font-weight:700;">${m.name[0]}</div>${esc(m.name)}</div>`:'<span style="color:var(--gray-400);">-</span>'}</td>
+      <td><div class="td-actions">
+        <button class="btn btn-outline  btn-sm" onclick="openAccountModal(${u.id})">수정</button>
+        <button class="btn btn-warning  btn-sm" onclick="openPwResetModal(${u.id})">비번 재설정</button>
+        ${!isMe?`<button class="btn btn-danger btn-sm" onclick="deleteAccount(${u.id})">삭제</button>`:''}
+      </div></td></tr>`;
+  }).join('');
+}
+
+function toggleMemberLink(){
+  const role=document.getElementById('aRole').value;
+  document.getElementById('aMemberGroup').style.opacity=role==='admin'?'0.4':'1';
+}
+
+function openAccountModal(id){
+  const users=getUsers(); const d=getDB(); const members=d.members||[];
+  // Populate member select
+  const sel=document.getElementById('aMemberId');
+  sel.innerHTML='<option value="">-- 없음 --</option>'+
+    members.map(m=>`<option value="${m.id}">${esc(m.name)} (${esc(m.role)})</option>`).join('');
+
+  if(id){
+    const u=users.find(x=>x.id===id); if(!u)return;
+    document.getElementById('accountModalTitle').textContent='계정 수정';
+    document.getElementById('editAccountId').value=u.id;
+    document.getElementById('aUsername').value=u.username;
+    document.getElementById('aDisplayName').value=u.displayName;
+    document.getElementById('aPassword').value='';
+    document.getElementById('aRole').value=u.role;
+    document.getElementById('aMemberId').value=u.memberId||'';
+    document.getElementById('aPwRequired').style.display='none';
+    document.getElementById('aPwNote').style.display='block';
+    // Lock username for admin
+    document.getElementById('aUsername').readOnly=(u.username==='admin');
+  } else {
+    document.getElementById('accountModalTitle').textContent='계정 추가';
+    document.getElementById('editAccountId').value='';
+    ['aUsername','aDisplayName','aPassword'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('aRole').value='researcher';
+    document.getElementById('aMemberId').value='';
+    document.getElementById('aPwRequired').style.display='inline';
+    document.getElementById('aPwNote').style.display='none';
+    document.getElementById('aUsername').readOnly=false;
+  }
+  toggleMemberLink();
+  document.getElementById('accountModal').classList.add('open');
+}
+function closeAccountModal(){ document.getElementById('accountModal').classList.remove('open'); }
+
+function saveAccount(){
+  const username=document.getElementById('aUsername').value.trim();
+  const displayName=document.getElementById('aDisplayName').value.trim();
+  const password=document.getElementById('aPassword').value;
+  const editId=parseInt(document.getElementById('editAccountId').value)||0;
+  if(!username||!displayName){alert('ID와 표시 이름을 입력하세요.');return;}
+  if(!editId&&!password){alert('비밀번호를 입력하세요.');return;}
+
+  const users=getUsers();
+  // Check duplicate username
+  const dup=users.find(u=>u.username===username&&u.id!==editId);
+  if(dup){alert('이미 사용 중인 ID입니다.');return;}
+
+  const memberId=document.getElementById('aMemberId').value ? parseInt(document.getElementById('aMemberId').value) : null;
+  const u={username,displayName,role:document.getElementById('aRole').value,memberId};
+  if(editId){
+    const idx=users.findIndex(x=>x.id===editId);
+    if(idx>-1){ users[idx]={...users[idx],...u}; if(password)users[idx].password=password; }
+  } else {
+    u.id=nextId(users); u.password=password; users.push(u);
+  }
+  saveUsers(users); closeAccountModal(); renderAccountsTable();
+  showAlert('accountAlert','success',editId?'계정이 수정되었습니다.':'계정이 추가되었습니다.');
+  renderDashboard();
+}
+
+function deleteAccount(id){
+  const users=getUsers(); const u=users.find(x=>x.id===id);
+  if(!u)return;
+  if(u.username==='admin'){alert('기본 admin 계정은 삭제할 수 없습니다.');return;}
+  if(!confirm(`'${u.displayName}(${u.username})' 계정을 삭제하시겠습니까?`))return;
+  saveUsers(users.filter(x=>x.id!==id)); renderAccountsTable();
+  showAlert('accountAlert','success','계정이 삭제되었습니다.');
+  renderDashboard();
+}
+
+function openPwResetModal(id){
+  const users=getUsers(); const u=users.find(x=>x.id===id); if(!u)return;
+  document.getElementById('pwResetUserId').value=id;
+  document.getElementById('pwResetTarget').textContent=`대상: ${u.displayName} (${u.username})`;
+  document.getElementById('pwResetNew').value='';
+  document.getElementById('pwResetConfirm').value='';
+  document.getElementById('pwResetModal').classList.add('open');
+}
+function closePwResetModal(){ document.getElementById('pwResetModal').classList.remove('open'); }
+
+function confirmPwReset(){
+  const nw=document.getElementById('pwResetNew').value;
+  const cf=document.getElementById('pwResetConfirm').value;
+  if(!nw){alert('새 비밀번호를 입력하세요.');return;}
+  if(nw!==cf){alert('비밀번호가 일치하지 않습니다.');return;}
+  const id=parseInt(document.getElementById('pwResetUserId').value);
+  const users=getUsers(); const idx=users.findIndex(u=>u.id===id);
+  if(idx>-1) users[idx].password=nw;
+  saveUsers(users); closePwResetModal();
+  showAlert('accountAlert','success','비밀번호가 재설정되었습니다.');
+}
+
+/* ══════════════════════════════════════
+   논문 관리 (관리자)
+══════════════════════════════════════ */
+function renderAuthorCheckboxes(containerId){
+  const d=getDB(); const members=d.members||[];
+  document.getElementById(containerId).innerHTML=members.map(m=>`
+    <label class="checkbox-item" id="${containerId}-label-${m.id}">
+      <input type="checkbox" id="${containerId}-cb-${m.id}" value="${m.id}"
+             onchange="updateCbStyle('${containerId}',${m.id})"/> ${esc(m.name)}
+    </label>`).join('');
+}
+function updateCbStyle(gid,id){
+  const cb=document.getElementById(gid+'-cb-'+id);
+  document.getElementById(gid+'-label-'+id).classList.toggle('checked',cb.checked);
+}
+function getCheckedAuthors(gid){
+  return [...document.querySelectorAll(`#${gid} input:checked`)].map(cb=>parseInt(cb.value));
+}
+
+function clearPubForm(){
+  ['pubTitle','pubJournal','pubVolume','pubDoi','pubLink','pubExtraAuthors'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('pubYear').value=new Date().getFullYear();
+  document.querySelectorAll('#authorCheckboxes .checkbox-item').forEach(l=>{l.classList.remove('checked');l.querySelector('input').checked=false;});
+}
+
+function savePub(){
+  const title=document.getElementById('pubTitle').value.trim();
+  const journal=document.getElementById('pubJournal').value.trim();
+  const year=parseInt(document.getElementById('pubYear').value)||0;
+  const authorIds=getCheckedAuthors('authorCheckboxes');
+  if(!title){alert('논문 제목을 입력하세요.');return;}
+  if(!journal){alert('학술지명을 입력하세요.');return;}
+  if(!year){alert('출판 연도를 입력하세요.');return;}
+  if(!authorIds.length){alert('저자를 한 명 이상 선택하세요.');return;}
+  const d=getDB(); if(!d.publications)d.publications=[];
+  d.publications.push({
+    id:nextId(d.publications),title,journal,year,
+    volume:document.getElementById('pubVolume').value.trim(),
+    doi:document.getElementById('pubDoi').value.trim(),
+    link:document.getElementById('pubLink').value.trim(),
+    authorIds,
+    extraAuthors:document.getElementById('pubExtraAuthors').value.trim(),
+    createdAt:new Date().toISOString()
+  });
+  saveDB(d); clearPubForm(); renderPubsTable();
+  showAlert('pubAlert','success','논문이 등록되었습니다.');
+  renderDashboard();
+}
+
+function renderPubsTable(){
+  const d=getDB(); const members=d.members||[];
+  const pubs=[...(d.publications||[])].sort((a,b)=>(b.year||0)-(a.year||0));
+  document.getElementById('pubCount').textContent='총 '+pubs.length+'편';
+  const tbody=document.getElementById('pubsTbody');
+  if(!pubs.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><div class="icon">📄</div><p>등록된 논문이 없습니다.</p></div></td></tr>';return;}
+  tbody.innerHTML=pubs.map(p=>{
+    const authors=(p.authorIds||[]).map(id=>getMemberName(id,members)).filter(Boolean);
+    if(p.extraAuthors)authors.push(p.extraAuthors);
+    const linkUrl=p.doi?'https://doi.org/'+p.doi:(p.link||'');
+    return `<tr>
+      <td><strong>${p.year||'-'}</strong></td>
+      <td style="max-width:260px;"><div style="font-weight:600;line-height:1.4;">${esc(p.title)}</div></td>
+      <td style="font-size:13px;color:var(--gray-500);font-style:italic;">${esc(p.journal||'')}${p.volume?' · '+esc(p.volume):''}</td>
+      <td style="font-size:13px;color:var(--green);">${esc(authors.join(', '))}</td>
+      <td>${linkUrl?`<a href="${esc(linkUrl)}" target="_blank" style="color:var(--green);font-weight:600;font-size:12px;">보기 →</a>`:'-'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deletePub(${p.id})">삭제</button></td></tr>`;
+  }).join('');
+}
+
+function deletePub(id){
+  if(!confirm('논문을 삭제하시겠습니까?'))return;
+  const d=getDB(); d.publications=(d.publications||[]).filter(p=>p.id!==id);
+  saveDB(d); renderPubsTable();
+  showAlert('pubAlert','success','삭제되었습니다.');
+  renderDashboard();
+}
+
+/* ══════════════════════════════════════
+   내 프로필 (연구원)
+══════════════════════════════════════ */
+function loadMyProfile(){
+  if(!currentUser||!currentUser.memberId)return;
+  const d=getDB(); const m=d.members.find(x=>x.id===currentUser.memberId); if(!m)return;
+  _myPhotoData = null;
+  document.getElementById('myName').value=m.name||'';
+  document.getElementById('myRole').value=m.role||'';
+  document.getElementById('myAffiliation').value=m.affiliation||'';
+  document.getElementById('myDegree').value=m.degree||'';
+  document.getElementById('myEmail').value=m.email||'';
+  document.getElementById('myBio').value=m.bio||'';
+  setPhotoUI('myPhotoCircle','myPhotoImg','myPhotoInitial','myPhotoRemoveBtn',
+    m.photo||null, m.name[0], m.color||'#1a3a5c');
+}
+function saveMyProfile(){
+  if(!currentUser||!currentUser.memberId){alert('연결된 구성원 정보가 없습니다.');return;}
+  const d=getDB(); const idx=d.members.findIndex(x=>x.id===currentUser.memberId);
+  if(idx<0){alert('구성원 정보를 찾을 수 없습니다.');return;}
+  d.members[idx].affiliation=document.getElementById('myAffiliation').value.trim();
+  d.members[idx].degree     =document.getElementById('myDegree').value.trim();
+  d.members[idx].email      =document.getElementById('myEmail').value.trim();
+  d.members[idx].bio        =document.getElementById('myBio').value.trim();
+  if(_myPhotoData==='__remove__') d.members[idx].photo=null;
+  else if(_myPhotoData) d.members[idx].photo=_myPhotoData;
+  _myPhotoData=null;
+  saveDB(d);
+  showAlert('profileAlert','success','프로필이 저장되었습니다.');
+}
+
+/* ══════════════════════════════════════
+   내 논문 (연구원)
+══════════════════════════════════════ */
+function clearMyPubForm(){
+  ['myPubTitle','myPubJournal','myPubVolume','myPubDoi','myPubLink','myPubCoAuthors'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('myPubYear').value=new Date().getFullYear();
+  document.querySelectorAll('#myAuthorCheckboxes .checkbox-item').forEach(l=>{l.classList.remove('checked');l.querySelector('input').checked=false;});
+}
+function saveMyPub(){
+  if(!currentUser||!currentUser.memberId){alert('연결된 구성원 정보가 없습니다.');return;}
+  const title  =document.getElementById('myPubTitle').value.trim();
+  const journal=document.getElementById('myPubJournal').value.trim();
+  const year   =parseInt(document.getElementById('myPubYear').value)||0;
+  if(!title){alert('논문 제목을 입력하세요.');return;}
+  if(!journal){alert('학술지명을 입력하세요.');return;}
+  if(!year){alert('출판 연도를 입력하세요.');return;}
+  const extraIds=getCheckedAuthors('myAuthorCheckboxes');
+  const authorIds=[...new Set([currentUser.memberId,...extraIds])];
+  const d=getDB(); if(!d.publications)d.publications=[];
+  d.publications.push({
+    id:nextId(d.publications),title,journal,year,
+    volume:document.getElementById('myPubVolume').value.trim(),
+    doi:document.getElementById('myPubDoi').value.trim(),
+    link:document.getElementById('myPubLink').value.trim(),
+    authorIds,
+    extraAuthors:document.getElementById('myPubCoAuthors').value.trim(),
+    createdAt:new Date().toISOString()
+  });
+  saveDB(d); clearMyPubForm(); renderMyPubsTable();
+  showAlert('myPubAlert','success','논문이 등록되었습니다.');
+}
+function renderMyPubsTable(){
+  if(!currentUser||!currentUser.memberId)return;
+  const d=getDB(); const members=d.members||[];
+  const myId=currentUser.memberId;
+  const pubs=[...(d.publications||[])].filter(p=>(p.authorIds||[]).includes(myId)).sort((a,b)=>(b.year||0)-(a.year||0));
+  document.getElementById('myPubCount').textContent='내 논문 총 '+pubs.length+'편';
+  const tbody=document.getElementById('myPubsTbody');
+  if(!pubs.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><div class="icon">📄</div><p>등록된 논문이 없습니다.</p></div></td></tr>';return;}
+  tbody.innerHTML=pubs.map(p=>{
+    const authors=(p.authorIds||[]).map(id=>getMemberName(id,members)).filter(Boolean);
+    if(p.extraAuthors)authors.push(p.extraAuthors);
+    const linkUrl=p.doi?'https://doi.org/'+p.doi:(p.link||'');
+    return `<tr>
+      <td><strong>${p.year||'-'}</strong></td>
+      <td style="max-width:260px;"><div style="font-weight:600;line-height:1.4;">${esc(p.title)}</div></td>
+      <td style="font-size:13px;color:var(--gray-500);font-style:italic;">${esc(p.journal||'')}</td>
+      <td style="font-size:13px;color:var(--green);">${esc(authors.join(', '))}</td>
+      <td>${linkUrl?`<a href="${esc(linkUrl)}" target="_blank" style="color:var(--green);font-weight:600;font-size:12px;">보기 →</a>`:'-'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteMyPub(${p.id})">삭제</button></td></tr>`;
+  }).join('');
+}
+function deleteMyPub(id){
+  if(!confirm('논문을 삭제하시겠습니까?'))return;
+  const d=getDB(); d.publications=(d.publications||[]).filter(p=>p.id!==id);
+  saveDB(d); renderMyPubsTable();
+  showAlert('myPubAlert','success','삭제되었습니다.');
+}
+
+/* ══════════════════════════════════════
+   공지사항
+══════════════════════════════════════ */
+function clearNewsForm(){
+  ['newsTitle','newsExcerpt'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('newsDate').valueAsDate=new Date();
+  document.getElementById('newsCategory').selectedIndex=0;
+  document.getElementById('newsFeatured').selectedIndex=0;
+}
+function saveNews(){
+  const title=document.getElementById('newsTitle').value.trim();
+  if(!title){alert('제목을 입력하세요.');return;}
+  const d=getDB(); if(!d.news)d.news=[];
+  d.news.unshift({
+    id:nextId(d.news),title,
+    date:document.getElementById('newsDate').value,
+    category:document.getElementById('newsCategory').value,
+    featured:document.getElementById('newsFeatured').value==='1',
+    excerpt:document.getElementById('newsExcerpt').value.trim()
+  });
+  saveDB(d); clearNewsForm(); renderNewsTable();
+  showAlert('newsAlert','success','공지사항이 등록되었습니다.');
+  renderDashboard();
+}
+function renderNewsTable(){
+  const d=getDB(); const news=d.news||[];
+  const tbody=document.getElementById('newsTbody');
+  if(!news.length){tbody.innerHTML='<tr><td colspan="5"><div class="empty-state"><div class="icon">📢</div><p>공지사항이 없습니다.</p></div></td></tr>';return;}
+  tbody.innerHTML=news.map(n=>`<tr>
+    <td>${n.date||''}</td>
+    <td><span style="background:var(--green-pale);color:var(--green);font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">${esc(n.category||'')}</span></td>
+    <td style="font-weight:600;">${esc(n.title)}</td>
+    <td>${n.featured?'⭐ 주요':'-'}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="deleteNews(${n.id})">삭제</button></td></tr>`).join('');
+}
+function deleteNews(id){
+  if(!confirm('공지사항을 삭제하시겠습니까?'))return;
+  const d=getDB(); d.news=(d.news||[]).filter(n=>n.id!==id);
+  saveDB(d); renderNewsTable();
+  showAlert('newsAlert','success','삭제되었습니다.');
+  renderDashboard();
+}
+
+/* ══════════════════════════════════════
+   내 비밀번호 변경
+══════════════════════════════════════ */
+function checkPwStrength(pw){
+  const bar=document.getElementById('pwStrengthBar');
+  const txt=document.getElementById('pwStrengthText');
+  if(!pw){bar.style.background='var(--gray-200)';bar.style.width='0';txt.textContent='';return;}
+  let score=0;
+  if(pw.length>=8)score++;
+  if(/[A-Z]/.test(pw))score++;
+  if(/[0-9]/.test(pw))score++;
+  if(/[^A-Za-z0-9]/.test(pw))score++;
+  const colors=['#e74c3c','#e67e22','#f1c40f','#2ecc71'];
+  const labels=['매우 약함','약함','보통','강함'];
+  bar.style.background=colors[score-1]||'var(--gray-200)';
+  bar.style.width=(score*25)+'%';
+  txt.textContent=score?'비밀번호 강도: '+labels[score-1]:'';
+}
+function changeMyPw(){
+  const cur=document.getElementById('pwCurrent').value;
+  const nw=document.getElementById('pwNew').value;
+  const cf=document.getElementById('pwConfirm').value;
+  const users=getUsers(); const idx=users.findIndex(u=>u.id===currentUser.id);
+  if(idx<0)return;
+  if(cur!==users[idx].password){showAlert('pwAlert','error','현재 비밀번호가 올바르지 않습니다.');return;}
+  if(!nw){showAlert('pwAlert','error','새 비밀번호를 입력하세요.');return;}
+  if(nw!==cf){showAlert('pwAlert','error','비밀번호가 일치하지 않습니다.');return;}
+  users[idx].password=nw;
+  saveUsers(users);
+  // Update session
+  currentUser.password=nw; setSession(currentUser);
+  showAlert('pwAlert','success','비밀번호가 변경되었습니다.');
+  ['pwCurrent','pwNew','pwConfirm'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('pwStrengthBar').style.background='var(--gray-200)';
+  document.getElementById('pwStrengthText').textContent='';
+}
+
+/* ══════════════════════════════════════
+   사진 업로드 공통 유틸
+══════════════════════════════════════ */
+let _memberPhotoData = null; // 모달에서 임시 저장
+let _myPhotoData     = null; // 내 프로필에서 임시 저장
+
+// 이미지를 200×200 JPEG로 압축
+function resizePhoto(file, callback) {
+  if (file.size > 5 * 1024 * 1024) { alert('파일 크기는 5MB 이하로 선택해주세요.'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const SIZE = 200;
+      const canvas = document.createElement('canvas');
+      // 정사각형 크롭 (중앙)
+      const min = Math.min(img.width, img.height);
+      const sx  = (img.width  - min) / 2;
+      const sy  = (img.height - min) / 2;
+      canvas.width = SIZE; canvas.height = SIZE;
+      canvas.getContext('2d').drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
+      callback(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function setPhotoUI(circleId, imgId, initialId, removeBtnId, photoData, initialChar, bgColor) {
+  const img  = document.getElementById(imgId);
+  const span = document.getElementById(initialId);
+  const btn  = document.getElementById(removeBtnId);
+  const circle = document.getElementById(circleId);
+  if (photoData) {
+    img.src = photoData; img.style.display = 'block';
+    span.style.display = 'none';
+    if (btn) btn.style.display = '';
+  } else {
+    img.src = ''; img.style.display = 'none';
+    span.style.display = ''; span.textContent = initialChar || '?';
+    circle.style.background = bgColor || 'var(--navy)';
+    if (btn) btn.style.display = 'none';
+  }
+}
+
+/* ─ 구성원 모달 ─ */
+function handleMemberPhotoSelect(input) {
+  if (!input.files || !input.files[0]) return;
+  resizePhoto(input.files[0], data => {
+    _memberPhotoData = data;
+    setPhotoUI('mPhotoCircle','mPhotoImg','mPhotoInitial','mPhotoRemoveBtn', data, null, null);
+  });
+  input.value = '';
+}
+function removeMemberPhoto() {
+  _memberPhotoData = '__remove__';
+  setPhotoUI('mPhotoCircle','mPhotoImg','mPhotoInitial','mPhotoRemoveBtn', null,
+    document.getElementById('mName').value[0]||'?',
+    document.getElementById('mColor').value);
+}
+
+/* ─ 내 프로필 ─ */
+function handleMyPhotoSelect(input) {
+  if (!input.files || !input.files[0]) return;
+  resizePhoto(input.files[0], data => {
+    _myPhotoData = data;
+    setPhotoUI('myPhotoCircle','myPhotoImg','myPhotoInitial','myPhotoRemoveBtn', data, null, null);
+  });
+  input.value = '';
+}
+function removeMyPhoto() {
+  _myPhotoData = '__remove__';
+  if (currentUser && currentUser.memberId) {
+    const d = getDB(); const m = d.members.find(x=>x.id===currentUser.memberId);
+    setPhotoUI('myPhotoCircle','myPhotoImg','myPhotoInitial','myPhotoRemoveBtn',
+      null, m ? m.name[0] : '?', m ? m.color : 'var(--navy)');
+  }
+}
+
+/* ══════════════════════════════════════
+   자동 로그인 (세션 유지)
+══════════════════════════════════════ */
+(function(){
+  const sess=getSession();
+  if(sess){
+    const users=getUsers();
+    const user=users.find(u=>u.id===sess.id&&u.username===sess.username);
+    if(user){
+      currentUser=user;
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('appLayout').style.display='block';
+      setupAppForUser(user);
+    }
+  }
+})();
+</script>
+</body>
+</html>
