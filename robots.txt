@@ -2,3 +2,5 @@ User-agent: *
 Allow: /
 
 Sitemap: https://koisr.re.kr/sitemap.xml
+
+#DaumWebMasterTool:7126d46ac363aa69b6091f4d36c2df9011b5689e6731012f9f811077c94ea83b:wXUfGVzzs8oS/OxpccdMbQ==
