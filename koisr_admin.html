@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>KOISR 관리자 시스템</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -346,7 +349,7 @@ textarea.form-control{resize:vertical;min-height:88px;}
             </div>
             <div style="display:flex;justify-content:flex-end;gap:10px;">
               <button class="btn btn-outline" onclick="clearPubForm()">초기화</button>
-              <button class="btn btn-success" onclick="savePub()">논문 저장</button>
+              <button id="pubSaveBtn" class="btn btn-success" onclick="savePub()">논문 저장</button>
             </div>
           </div>
         </div>
@@ -464,7 +467,7 @@ textarea.form-control{resize:vertical;min-height:88px;}
             </div>
             <div style="display:flex;justify-content:flex-end;gap:10px;">
               <button class="btn btn-outline" onclick="clearMyPubForm()">초기화</button>
-              <button class="btn btn-success" onclick="saveMyPub()">논문 저장</button>
+              <button id="myPubSaveBtn" class="btn btn-success" onclick="saveMyPub()">논문 저장</button>
             </div>
           </div>
         </div>
@@ -524,6 +527,51 @@ textarea.form-control{resize:vertical;min-height:88px;}
           <div class="table-wrap" style="padding:0;">
             <table><thead><tr><th>날짜</th><th>분류</th><th>제목</th><th>주요</th><th>관리</th></tr></thead>
             <tbody id="newsTbody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── BOARD (공지/소식 게시판) ── -->
+      <div id="tab-board" class="tab-section">
+        <div class="alert" id="boardAlert"></div>
+        <div class="card" style="margin-bottom:22px;" id="boardFormCard">
+          <div class="card-header">
+            <span class="card-title" id="boardFormTitle">새 게시물 작성</span>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group" style="flex:2;">
+                <label>제목 <span class="req">*</span></label>
+                <input type="text" class="form-control" id="boardPostTitle" placeholder="게시물 제목"/>
+              </div>
+              <div class="form-group">
+                <label>분류</label>
+                <select class="form-control" id="boardPostCategory">
+                  <option>공지사항</option>
+                  <option>연구소 소식</option>
+                  <option>세미나·행사</option>
+                  <option>채용 공고</option>
+                  <option>기타</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>내용 <span class="req">*</span></label>
+              <textarea class="form-control" id="boardPostContent" rows="6" placeholder="게시물 내용을 입력하세요."></textarea>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+              <button class="btn btn-outline" onclick="clearBoardForm()">초기화</button>
+              <button class="btn btn-success" id="boardSaveBtn" onclick="savePost()">게시물 저장</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">게시물 목록</span></div>
+          <div class="table-wrap" style="padding:0;">
+            <table>
+              <thead><tr><th style="width:120px;">날짜</th><th style="width:100px;">분류</th><th>제목</th><th style="width:80px;">작성자</th><th style="width:100px;">관리</th></tr></thead>
+              <tbody id="boardTbody"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -697,6 +745,63 @@ const DB_KEY    = 'koisr_db';
 const USERS_KEY = 'koisr_users';
 const SESS_KEY  = 'koisr_session';
 
+/* ══════════════════════════════════════
+   FIREBASE 설정
+   Firebase 콘솔에서 복사한 값으로 교체하세요
+══════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey:            "AIzaSyD-RzcnrXq2yvq5O66XFNb0lSiW9ix896A",
+  authDomain:        "koisr-50a87.firebaseapp.com",
+  projectId:         "koisr-50a87",
+  storageBucket:     "koisr-50a87.firebasestorage.app",
+  messagingSenderId: "117138947633",
+  appId:             "1:117138947633:web:e254c933c3f9ab12409f10"
+};
+
+let _firestore = null;
+
+function initFirebase() {
+  try {
+    if (!firebaseConfig.apiKey || firebaseConfig.apiKey === 'YOUR_API_KEY') return;
+    const app = firebase.initializeApp(firebaseConfig);
+    _firestore = firebase.firestore();
+
+    /* 메인 데이터 실시간 동기화 */
+    _firestore.collection('koisr').doc('main').onSnapshot(snap => {
+      if (snap.exists) {
+        localStorage.setItem(DB_KEY, JSON.stringify(snap.data()));
+        if (currentUser) refreshCurrentTab();
+      }
+    });
+
+    /* 사용자 데이터 실시간 동기화 */
+    _firestore.collection('koisr').doc('users').onSnapshot(snap => {
+      if (snap.exists && snap.data().list) {
+        localStorage.setItem(USERS_KEY, JSON.stringify(snap.data().list));
+      }
+    });
+
+    /* 첫 로드: Firebase → localStorage */
+    _firestore.collection('koisr').doc('main').get().then(snap => {
+      if (snap.exists) localStorage.setItem(DB_KEY, JSON.stringify(snap.data()));
+    });
+    _firestore.collection('koisr').doc('users').get().then(snap => {
+      if (snap.exists && snap.data().list) localStorage.setItem(USERS_KEY, JSON.stringify(snap.data().list));
+    });
+  } catch(e) { console.warn('Firebase 초기화 실패:', e); }
+}
+
+function refreshCurrentTab() {
+  const active = document.querySelector('.nav-item.active');
+  if (!active) return;
+  const tab = active.dataset.tab || '';
+  if (tab==='dashboard')   renderDashboard();
+  if (tab==='members')     renderMembersTable();
+  if (tab==='publications') renderPubsTable();
+  if (tab==='news')        renderNewsTable();
+  if (tab==='mypubs')      renderMyPubsTable();
+}
+
 const DEFAULT_MEMBERS = [
   {id:1,name:"이계희",role:"위원장", affiliation:"경희대학교 교수",degree:"관광학 박사",email:"",color:"#1a3a5c",bio:""},
   {id:2,name:"유재호",role:"소장",   affiliation:"관광학 박사",    degree:"",          email:"",color:"#2e7d4f",bio:""},
@@ -713,10 +818,16 @@ const DEFAULT_USERS = [
 ];
 
 /* ── 데이터 접근 ── */
-function getDB()    { try{const s=localStorage.getItem(DB_KEY);    if(s)return JSON.parse(s);}catch(e){} return {members:[...DEFAULT_MEMBERS],publications:[],news:[]}; }
-function saveDB(d)  { localStorage.setItem(DB_KEY, JSON.stringify(d)); }
+function getDB()    { try{const s=localStorage.getItem(DB_KEY);    if(s){const p=JSON.parse(s);if(!p.board)p.board=[];return p;}}catch(e){} return {members:[...DEFAULT_MEMBERS],publications:[],news:[],board:[]}; }
+function saveDB(d)  {
+  localStorage.setItem(DB_KEY, JSON.stringify(d));
+  if(_firestore) _firestore.collection('koisr').doc('main').set(d).catch(e=>console.warn('Firebase saveDB 오류:',e));
+}
 function getUsers() { try{const s=localStorage.getItem(USERS_KEY); if(s)return JSON.parse(s);}catch(e){} return [...DEFAULT_USERS]; }
-function saveUsers(u){ localStorage.setItem(USERS_KEY, JSON.stringify(u)); }
+function saveUsers(u){
+  localStorage.setItem(USERS_KEY, JSON.stringify(u));
+  if(_firestore) _firestore.collection('koisr').doc('users').set({list:u}).catch(e=>console.warn('Firebase saveUsers 오류:',e));
+}
 function nextId(arr){ return arr.length ? Math.max(...arr.map(i=>i.id||0))+1 : 1; }
 
 /* ── 현재 로그인 사용자 ── */
@@ -772,6 +883,7 @@ function setupAppForUser(user){
       <a href="#" onclick="return showTab('accounts',this)"><span class="icon">🔑</span><span>계정 관리</span></a>
       <a href="#" onclick="return showTab('publications',this)"><span class="icon">📄</span><span>논문 관리</span></a>
       <a href="#" onclick="return showTab('news',this)"><span class="icon">📢</span><span>공지사항</span></a>
+      <a href="#" onclick="return showTab('board',this)"><span class="icon">📋</span><span>게시판</span></a>
       <div class="nav-section">설정</div>
       <a href="#" onclick="return showTab('settings',this)"><span class="icon">🔒</span><span>비밀번호 변경</span></a>`;
     showTab('dashboard', nav.querySelector('a'));
@@ -780,6 +892,7 @@ function setupAppForUser(user){
       <div class="nav-section">내 정보</div>
       <a href="#" class="active" onclick="return showTab('profile',this)"><span class="icon">👤</span><span>내 프로필</span></a>
       <a href="#" onclick="return showTab('mypubs',this)"><span class="icon">📄</span><span>내 논문</span></a>
+      <a href="#" onclick="return showTab('board',this)"><span class="icon">📋</span><span>게시판</span></a>
       <div class="nav-section">설정</div>
       <a href="#" onclick="return showTab('settings',this)"><span class="icon">🔒</span><span>비밀번호 변경</span></a>`;
     loadMyProfile();
@@ -797,7 +910,7 @@ function setupAppForUser(user){
 ══════════════════════════════════════ */
 const TAB_TITLES = {
   dashboard:'대시보드', members:'구성원 관리', accounts:'계정 관리',
-  publications:'논문 관리', news:'공지사항',
+  publications:'논문 관리', news:'공지사항', board:'게시판',
   profile:'내 프로필', mypubs:'내 논문', settings:'비밀번호 변경'
 };
 function showTab(name, linkEl){
@@ -813,6 +926,7 @@ function showTab(name, linkEl){
   if(name==='accounts')     renderAccountsTable();
   if(name==='publications') { renderAuthorCheckboxes('authorCheckboxes'); renderPubsTable(); }
   if(name==='news')         renderNewsTable();
+  if(name==='board')        renderBoardList();
   if(name==='profile')      loadMyProfile();
   if(name==='mypubs')       { renderAuthorCheckboxes('myAuthorCheckboxes'); renderMyPubsTable(); }
   return false;
@@ -1081,10 +1195,38 @@ function getCheckedAuthors(gid){
   return [...document.querySelectorAll(`#${gid} input:checked`)].map(cb=>parseInt(cb.value));
 }
 
+let _editPubId = null; /* null=신규, 숫자=수정 중인 논문 id */
+
 function clearPubForm(){
   ['pubTitle','pubJournal','pubVolume','pubDoi','pubLink','pubExtraAuthors'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('pubYear').value=new Date().getFullYear();
   document.querySelectorAll('#authorCheckboxes .checkbox-item').forEach(l=>{l.classList.remove('checked');l.querySelector('input').checked=false;});
+  _editPubId=null;
+  const btn=document.getElementById('pubSaveBtn');
+  if(btn){btn.textContent='논문 저장'; btn.style.background='';}
+}
+
+function editPub(id){
+  const d=getDB(); const p=(d.publications||[]).find(x=>x.id===id); if(!p)return;
+  _editPubId=id;
+  document.getElementById('pubTitle').value=p.title||'';
+  document.getElementById('pubJournal').value=p.journal||'';
+  document.getElementById('pubYear').value=p.year||new Date().getFullYear();
+  document.getElementById('pubVolume').value=p.volume||'';
+  document.getElementById('pubDoi').value=p.doi||'';
+  document.getElementById('pubLink').value=p.link||'';
+  document.getElementById('pubExtraAuthors').value=p.extraAuthors||'';
+  /* 저자 체크박스 복원 */
+  renderAuthorCheckboxes('authorCheckboxes');
+  setTimeout(()=>{
+    document.querySelectorAll('#authorCheckboxes .checkbox-item').forEach(l=>{
+      const inp=l.querySelector('input');
+      if((p.authorIds||[]).includes(parseInt(inp.value))){l.classList.add('checked');inp.checked=true;}
+    });
+  },50);
+  const btn=document.getElementById('pubSaveBtn');
+  if(btn){btn.textContent='논문 수정 저장'; btn.style.background='#c0392b';}
+  document.getElementById('pubTitle').scrollIntoView({behavior:'smooth',block:'center'});
 }
 
 function savePub(){
@@ -1097,17 +1239,25 @@ function savePub(){
   if(!year){alert('출판 연도를 입력하세요.');return;}
   if(!authorIds.length){alert('저자를 한 명 이상 선택하세요.');return;}
   const d=getDB(); if(!d.publications)d.publications=[];
-  d.publications.push({
-    id:nextId(d.publications),title,journal,year,
+  const pubData={title,journal,year,
     volume:document.getElementById('pubVolume').value.trim(),
     doi:document.getElementById('pubDoi').value.trim(),
     link:document.getElementById('pubLink').value.trim(),
     authorIds,
-    extraAuthors:document.getElementById('pubExtraAuthors').value.trim(),
-    createdAt:new Date().toISOString()
-  });
-  saveDB(d); clearPubForm(); renderPubsTable();
-  showAlert('pubAlert','success','논문이 등록되었습니다.');
+    extraAuthors:document.getElementById('pubExtraAuthors').value.trim()
+  };
+  if(_editPubId!==null){
+    /* 수정 모드 */
+    const idx=d.publications.findIndex(p=>p.id===_editPubId);
+    if(idx>=0) d.publications[idx]={...d.publications[idx],...pubData};
+    saveDB(d); clearPubForm(); renderPubsTable();
+    showAlert('pubAlert','success','논문이 수정되었습니다.');
+  } else {
+    /* 신규 등록 */
+    d.publications.push({id:nextId(d.publications),...pubData,createdAt:new Date().toISOString()});
+    saveDB(d); clearPubForm(); renderPubsTable();
+    showAlert('pubAlert','success','논문이 등록되었습니다.');
+  }
   renderDashboard();
 }
 
@@ -1127,7 +1277,10 @@ function renderPubsTable(){
       <td style="font-size:13px;color:var(--gray-500);font-style:italic;">${esc(p.journal||'')}${p.volume?' · '+esc(p.volume):''}</td>
       <td style="font-size:13px;color:var(--green);">${esc(authors.join(', '))}</td>
       <td>${linkUrl?`<a href="${esc(linkUrl)}" target="_blank" style="color:var(--green);font-weight:600;font-size:12px;">보기 →</a>`:'-'}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deletePub(${p.id})">삭제</button></td></tr>`;
+      <td style="white-space:nowrap;">
+        <button class="btn btn-sm" style="background:#2e7d4f;color:white;margin-right:4px;" onclick="editPub(${p.id})">수정</button>
+        <button class="btn btn-danger btn-sm" onclick="deletePub(${p.id})">삭제</button>
+      </td></tr>`;
   }).join('');
 }
 
@@ -1173,10 +1326,36 @@ function saveMyProfile(){
 /* ══════════════════════════════════════
    내 논문 (연구원)
 ══════════════════════════════════════ */
+let _editMyPubId = null;
+
 function clearMyPubForm(){
   ['myPubTitle','myPubJournal','myPubVolume','myPubDoi','myPubLink','myPubCoAuthors'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('myPubYear').value=new Date().getFullYear();
   document.querySelectorAll('#myAuthorCheckboxes .checkbox-item').forEach(l=>{l.classList.remove('checked');l.querySelector('input').checked=false;});
+  _editMyPubId=null;
+  const btn=document.getElementById('myPubSaveBtn');
+  if(btn){btn.textContent='논문 저장'; btn.style.background='';}
+}
+function editMyPub(id){
+  const d=getDB(); const p=(d.publications||[]).find(x=>x.id===id); if(!p)return;
+  _editMyPubId=id;
+  document.getElementById('myPubTitle').value=p.title||'';
+  document.getElementById('myPubJournal').value=p.journal||'';
+  document.getElementById('myPubYear').value=p.year||new Date().getFullYear();
+  document.getElementById('myPubVolume').value=p.volume||'';
+  document.getElementById('myPubDoi').value=p.doi||'';
+  document.getElementById('myPubLink').value=p.link||'';
+  document.getElementById('myPubCoAuthors').value=p.extraAuthors||'';
+  renderAuthorCheckboxes('myAuthorCheckboxes');
+  setTimeout(()=>{
+    document.querySelectorAll('#myAuthorCheckboxes .checkbox-item').forEach(l=>{
+      const inp=l.querySelector('input');
+      if((p.authorIds||[]).includes(parseInt(inp.value))){l.classList.add('checked');inp.checked=true;}
+    });
+  },50);
+  const btn=document.getElementById('myPubSaveBtn');
+  if(btn){btn.textContent='논문 수정 저장'; btn.style.background='#c0392b';}
+  document.getElementById('myPubTitle').scrollIntoView({behavior:'smooth',block:'center'});
 }
 function saveMyPub(){
   if(!currentUser||!currentUser.memberId){alert('연결된 구성원 정보가 없습니다.');return;}
@@ -1189,17 +1368,23 @@ function saveMyPub(){
   const extraIds=getCheckedAuthors('myAuthorCheckboxes');
   const authorIds=[...new Set([currentUser.memberId,...extraIds])];
   const d=getDB(); if(!d.publications)d.publications=[];
-  d.publications.push({
-    id:nextId(d.publications),title,journal,year,
+  const pubData={title,journal,year,
     volume:document.getElementById('myPubVolume').value.trim(),
     doi:document.getElementById('myPubDoi').value.trim(),
     link:document.getElementById('myPubLink').value.trim(),
     authorIds,
-    extraAuthors:document.getElementById('myPubCoAuthors').value.trim(),
-    createdAt:new Date().toISOString()
-  });
-  saveDB(d); clearMyPubForm(); renderMyPubsTable();
-  showAlert('myPubAlert','success','논문이 등록되었습니다.');
+    extraAuthors:document.getElementById('myPubCoAuthors').value.trim()
+  };
+  if(_editMyPubId!==null){
+    const idx=d.publications.findIndex(p=>p.id===_editMyPubId);
+    if(idx>=0) d.publications[idx]={...d.publications[idx],...pubData};
+    saveDB(d); clearMyPubForm(); renderMyPubsTable();
+    showAlert('myPubAlert','success','논문이 수정되었습니다.');
+  } else {
+    d.publications.push({id:nextId(d.publications),...pubData,createdAt:new Date().toISOString()});
+    saveDB(d); clearMyPubForm(); renderMyPubsTable();
+    showAlert('myPubAlert','success','논문이 등록되었습니다.');
+  }
 }
 function renderMyPubsTable(){
   if(!currentUser||!currentUser.memberId)return;
@@ -1219,7 +1404,10 @@ function renderMyPubsTable(){
       <td style="font-size:13px;color:var(--gray-500);font-style:italic;">${esc(p.journal||'')}</td>
       <td style="font-size:13px;color:var(--green);">${esc(authors.join(', '))}</td>
       <td>${linkUrl?`<a href="${esc(linkUrl)}" target="_blank" style="color:var(--green);font-weight:600;font-size:12px;">보기 →</a>`:'-'}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteMyPub(${p.id})">삭제</button></td></tr>`;
+      <td style="white-space:nowrap;">
+        <button class="btn btn-sm" style="background:#2e7d4f;color:white;margin-right:4px;" onclick="editMyPub(${p.id})">수정</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteMyPub(${p.id})">삭제</button>
+      </td></tr>`;
   }).join('');
 }
 function deleteMyPub(id){
@@ -1270,6 +1458,99 @@ function deleteNews(id){
   saveDB(d); renderNewsTable();
   showAlert('newsAlert','success','삭제되었습니다.');
   renderDashboard();
+}
+
+/* ══════════════════════════════════════
+   게시판 (공지/소식)
+══════════════════════════════════════ */
+let _editPostId = null;
+
+function clearBoardForm(){
+  _editPostId = null;
+  document.getElementById('boardPostTitle').value   = '';
+  document.getElementById('boardPostContent').value = '';
+  document.getElementById('boardPostCategory').value= '공지사항';
+  document.getElementById('boardFormTitle').textContent = '새 게시물 작성';
+  const btn = document.getElementById('boardSaveBtn');
+  btn.textContent = '게시물 저장'; btn.style.background = '';
+}
+
+function savePost(){
+  const title   = document.getElementById('boardPostTitle').value.trim();
+  const content = document.getElementById('boardPostContent').value.trim();
+  const cat     = document.getElementById('boardPostCategory').value;
+  if(!title||!content){ showAlert('boardAlert','error','제목과 내용을 입력해 주세요.'); return; }
+
+  const sess = JSON.parse(localStorage.getItem('koisr_session')||'{}');
+  const authorName = sess.displayName || sess.username || '관리자';
+
+  const d = getDB(); if(!d.board) d.board = [];
+
+  if(_editPostId !== null){
+    const idx = d.board.findIndex(p=>p.id===_editPostId);
+    if(idx>=0){
+      d.board[idx].title   = title;
+      d.board[idx].content = content;
+      d.board[idx].category= cat;
+      d.board[idx].updated = new Date().toISOString().slice(0,10);
+    }
+    showAlert('boardAlert','success','게시물이 수정되었습니다.');
+  } else {
+    d.board.unshift({
+      id:       Date.now(),
+      title,
+      content,
+      category: cat,
+      author:   authorName,
+      date:     new Date().toISOString().slice(0,10)
+    });
+    showAlert('boardAlert','success','게시물이 등록되었습니다.');
+  }
+
+  saveDB(d);
+  clearBoardForm();
+  renderBoardList();
+}
+
+function editPost(id){
+  const d = getDB(); const post = (d.board||[]).find(p=>p.id===id);
+  if(!post) return;
+  _editPostId = id;
+  document.getElementById('boardPostTitle').value    = post.title;
+  document.getElementById('boardPostContent').value  = post.content;
+  document.getElementById('boardPostCategory').value = post.category||'공지사항';
+  document.getElementById('boardFormTitle').textContent = '게시물 수정';
+  const btn = document.getElementById('boardSaveBtn');
+  btn.textContent = '수정 저장'; btn.style.background = '#1a3a5c';
+  document.getElementById('boardFormCard').scrollIntoView({behavior:'smooth'});
+}
+
+function deletePost(id){
+  if(!confirm('게시물을 삭제하시겠습니까?'))return;
+  const d=getDB(); d.board=(d.board||[]).filter(p=>p.id!==id);
+  saveDB(d); renderBoardList();
+  showAlert('boardAlert','success','삭제되었습니다.');
+}
+
+function renderBoardList(){
+  const d=getDB(); const posts=d.board||[];
+  const tbody=document.getElementById('boardTbody');
+  if(!tbody)return;
+  if(!posts.length){
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:28px;">등록된 게시물이 없습니다.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = posts.map(p=>`
+    <tr>
+      <td>${esc(p.date||'')}</td>
+      <td><span style="background:rgba(46,125,79,.12);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px;">${esc(p.category||'기타')}</span></td>
+      <td style="font-weight:500;">${esc(p.title)}</td>
+      <td>${esc(p.author||'')}</td>
+      <td>
+        <button class="btn-icon" style="color:var(--green);" onclick="editPost(${p.id})">✏️</button>
+        <button class="btn-icon" style="color:#e74c3c;" onclick="deletePost(${p.id})">🗑</button>
+      </td>
+    </tr>`).join('');
 }
 
 /* ══════════════════════════════════════
@@ -1392,6 +1673,7 @@ function removeMyPhoto() {
    자동 로그인 (세션 유지)
 ══════════════════════════════════════ */
 (function(){
+  initFirebase();
   const sess=getSession();
   if(sess){
     const users=getUsers();

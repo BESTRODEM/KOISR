@@ -6,6 +6,11 @@
   <title>한국지속가능연구원</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Serif+KR:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
+  <!-- EmailJS -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -946,26 +951,26 @@
         <div class="form-row">
           <div class="form-group">
             <label>이름 <span class="req-mark">*</span></label>
-            <input type="text" class="form-control" placeholder="홍길동" />
+            <input type="text" id="reqName" class="form-control" placeholder="홍길동" />
           </div>
           <div class="form-group">
             <label>소속 기관 <span class="req-mark">*</span></label>
-            <input type="text" class="form-control" placeholder="○○부 / ○○주식회사" />
+            <input type="text" id="reqOrg" class="form-control" placeholder="○○부 / ○○주식회사" />
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>이메일 <span class="req-mark">*</span></label>
-            <input type="email" class="form-control" placeholder="name@organization.kr" />
+            <input type="email" id="reqEmail" class="form-control" placeholder="name@organization.kr" />
           </div>
           <div class="form-group">
             <label>연락처</label>
-            <input type="tel" class="form-control" placeholder="010-0000-0000" />
+            <input type="tel" id="reqPhone" class="form-control" placeholder="010-0000-0000" />
           </div>
         </div>
         <div class="form-group">
           <label>의뢰 유형 <span class="req-mark">*</span></label>
-          <select class="form-control">
+          <select id="reqType" class="form-control">
             <option value="">선택해주세요</option>
             <option>정책 연구·용역</option>
             <option>기업 ESG·지속가능성 컨설팅</option>
@@ -976,9 +981,9 @@
         </div>
         <div class="form-group">
           <label>연구 주제 또는 문의 내용 <span class="req-mark">*</span></label>
-          <textarea class="form-control" placeholder="연구 목적, 배경, 예산 규모, 희망 일정 등을 간략히 기재해 주세요."></textarea>
+          <textarea id="reqContent" class="form-control" placeholder="연구 목적, 배경, 예산 규모, 희망 일정 등을 간략히 기재해 주세요."></textarea>
         </div>
-        <button class="form-submit" onclick="handleSubmit(event)">문의 제출하기</button>
+        <button class="form-submit" onclick="handleSubmit(this)">문의 제출하기</button>
         <p class="form-note">※ 제출된 내용은 담당 연구원이 검토 후 2~3 영업일 내 회신드립니다.</p>
       </div>
     </div>
@@ -1032,6 +1037,16 @@
 </footer>
 
 <script>
+/* ── Firebase 설정 (admin과 동일한 값 입력) ── */
+const firebaseConfig = {
+  apiKey:            "AIzaSyD-RzcnrXq2yvq5O66XFNb0lSiW9ix896A",
+  authDomain:        "koisr-50a87.firebaseapp.com",
+  projectId:         "koisr-50a87",
+  storageBucket:     "koisr-50a87.firebasestorage.app",
+  messagingSenderId: "117138947633",
+  appId:             "1:117138947633:web:e254c933c3f9ab12409f10"
+};
+
 /* ── 데이터 관리 ── */
 const STORAGE_KEY = 'koisr_db';
 
@@ -1155,20 +1170,90 @@ window.addEventListener('scroll', () => {
   });
 });
 
+/* ── EmailJS 설정 ── */
+const EMAILJS_SERVICE_ID  = 'YOUR_SERVICE_ID';   // EmailJS 서비스 ID로 교체
+const EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';  // EmailJS 템플릿 ID로 교체
+const EMAILJS_PUBLIC_KEY  = 'YOUR_PUBLIC_KEY';   // EmailJS 공개키로 교체
+
 /* ── 연구의뢰 폼 ── */
-function handleSubmit(e) {
-  e.preventDefault();
-  const btn = e.target;
-  btn.textContent = '✔ 제출 완료! 곧 연락드리겠습니다.';
-  btn.style.background = '#1a3a5c';
-  btn.style.cursor = 'default';
+function handleSubmit(btn) {
+  const name    = document.getElementById('reqName').value.trim();
+  const org     = document.getElementById('reqOrg').value.trim();
+  const email   = document.getElementById('reqEmail').value.trim();
+  const phone   = document.getElementById('reqPhone').value.trim();
+  const type    = document.getElementById('reqType').value;
+  const content = document.getElementById('reqContent').value.trim();
+
+  if (!name || !org || !email || !type || !content) {
+    alert('필수 항목(이름, 소속, 이메일, 의뢰 유형, 내용)을 모두 입력해 주세요.');
+    return;
+  }
+
+  btn.textContent = '전송 중...';
   btn.disabled = true;
+
+  const params = {
+    from_name:    name,
+    from_org:     org,
+    from_email:   email,
+    from_phone:   phone || '미기재',
+    req_type:     type,
+    req_content:  content,
+    submit_time:  new Date().toLocaleString('ko-KR')
+  };
+
+  // Firebase에 의뢰 내용 저장
+  try {
+    if (typeof db !== 'undefined') {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      const reqs  = saved.requests || [];
+      reqs.push({ ...params, id: Date.now() });
+      saved.requests = reqs;
+      db.collection('koisr').doc('main').set(saved).catch(() => {});
+    }
+  } catch(e) {}
+
+  // EmailJS 발송 (설정 완료 전에는 콘솔 로그만)
+  if (EMAILJS_SERVICE_ID === 'YOUR_SERVICE_ID') {
+    console.log('EmailJS 미설정 — 폼 데이터:', params);
+    btn.textContent = '✔ 제출 완료! 곧 연락드리겠습니다.';
+    btn.style.background = '#1a3a5c';
+    btn.style.cursor = 'default';
+    return;
+  }
+
+  emailjs.init(EMAILJS_PUBLIC_KEY);
+  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
+    .then(() => {
+      btn.textContent = '✔ 제출 완료! 곧 연락드리겠습니다.';
+      btn.style.background = '#1a3a5c';
+      btn.style.cursor = 'default';
+    })
+    .catch(err => {
+      console.error('EmailJS 오류:', err);
+      btn.textContent = '전송 실패 — 이메일로 직접 문의해 주세요.';
+      btn.style.background = '#c0392b';
+      btn.disabled = false;
+    });
 }
 
-/* ── 초기화 ── */
+/* ── Firebase 초기화 및 실시간 동기화 ── */
 document.addEventListener('DOMContentLoaded', () => {
   renderMembers();
   renderPublications(0);
+
+  try {
+    if (!firebaseConfig.apiKey || firebaseConfig.apiKey === 'YOUR_API_KEY') return;
+    const app = firebase.initializeApp(firebaseConfig);
+    const db  = firebase.firestore();
+    db.collection('koisr').doc('main').onSnapshot(snap => {
+      if (snap.exists) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(snap.data()));
+        renderMembers();
+        renderPublications(_currentFilter || 0);
+      }
+    });
+  } catch(e) { console.warn('Firebase 초기화 실패:', e); }
 });
 </script>
 </body>
