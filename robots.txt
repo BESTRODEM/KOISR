@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://koisr.re.kr/sitemap.xml
