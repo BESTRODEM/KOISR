@@ -881,47 +881,8 @@
       <h2 class="section-title">뉴스 및 공지사항</h2>
       <p class="section-desc">연구소 최신 소식, 연구 발표, 세미나 및 행사 일정을 안내합니다.</p>
     </div>
-    <div class="news-grid">
-      <div class="news-featured">
-        <div class="news-featured-img">📰</div>
-        <div class="news-featured-body">
-          <div class="news-meta">주요 뉴스 · 2026.06.20</div>
-          <h3 class="news-title">한국지속가능연구원, 2026 국가 탄소중립 이행점검 보고서 발간</h3>
-          <p class="news-excerpt">연구소는 정부의 2030 NDC 달성 가능성을 다각도로 분석한 『2026 국가 탄소중립 이행점검 보고서』를 공식 발간하였습니다. 이번 보고서는 부문별 온실가스 감축 이행 현황을 평가하고...</p>
-          <a href="#" class="view-more">전체 보기</a>
-        </div>
-      </div>
-      <div class="news-list">
-        <a href="#" class="news-item">
-          <div class="ni-date"><div class="day">18</div><div class="mon">JUN</div></div>
-          <div class="ni-body">
-            <div class="ni-cat">세미나</div>
-            <div class="ni-title">제7회 지속가능성 포럼 — ESG 공시 의무화와 기업 대응 전략</div>
-          </div>
-        </a>
-        <a href="#" class="news-item">
-          <div class="ni-date"><div class="day">10</div><div class="mon">JUN</div></div>
-          <div class="ni-body">
-            <div class="ni-cat">연구 발표</div>
-            <div class="ni-title">재생에너지 RPS 제도 개선 방안 연구 결과 발표 — 전력시장 연구팀</div>
-          </div>
-        </a>
-        <a href="#" class="news-item">
-          <div class="ni-date"><div class="day">02</div><div class="mon">JUN</div></div>
-          <div class="ni-body">
-            <div class="ni-cat">채용 공고</div>
-            <div class="ni-title">2026년 하반기 연구원 모집 — 에너지·도시 분야 경력직 2명</div>
-          </div>
-        </a>
-        <a href="#" class="news-item">
-          <div class="ni-date"><div class="day">22</div><div class="mon">MAY</div></div>
-          <div class="ni-body">
-            <div class="ni-cat">국제협력</div>
-            <div class="ni-title">UNEP 한국사무소와 SDGs 이행 공동연구 MOU 체결</div>
-          </div>
-        </a>
-        <a href="#" class="view-more">뉴스 전체 보기</a>
-      </div>
+    <div id="newsGrid" class="news-grid">
+      <div style="grid-column:1/-1;text-align:center;padding:40px;color:#aaa;">뉴스를 불러오는 중...</div>
     </div>
   </div>
 </section>
@@ -1057,6 +1018,16 @@
   </div>
 </footer>
 
+<!-- 뉴스 상세 모달 -->
+<div id="newsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:white;border-radius:14px;max-width:580px;width:100%;max-height:85vh;overflow-y:auto;padding:36px;position:relative;">
+    <button onclick="closeNewsModal()" style="position:absolute;top:16px;right:18px;background:none;border:none;font-size:22px;cursor:pointer;color:#888;">✕</button>
+    <div id="newsModalMeta" style="font-size:12px;color:#2e7d4f;font-weight:600;letter-spacing:.5px;margin-bottom:10px;"></div>
+    <h3 id="newsModalTitle" style="font-size:20px;font-weight:700;color:#1a3a5c;line-height:1.4;margin-bottom:16px;"></h3>
+    <p id="newsModalExcerpt" style="font-size:14.5px;color:#555;line-height:1.8;white-space:pre-wrap;"></p>
+  </div>
+</div>
+
 <script>
 /* ── Firebase 설정 (admin과 동일한 값 입력) ── */
 const firebaseConfig = {
@@ -1091,6 +1062,80 @@ function getData() {
 }
 
 /* ── 구성원 렌더링 ── */
+/* ── 뉴스 렌더링 ── */
+function renderNews() {
+  const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  const news = (d.news || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const grid = document.getElementById('newsGrid');
+  if (!grid) return;
+
+  if (!news.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#aaa;font-size:15px;">등록된 뉴스가 없습니다.</div>';
+    return;
+  }
+
+  const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  function fmtDate(d) {
+    if (!d) return {day:'--', mon:'---', full:''};
+    const p = d.split('-');
+    return { day: p[2]||'', mon: MONTHS[(parseInt(p[1]||1)-1)] || '', full: d.replace(/-/g,'.') };
+  }
+
+  // 주요 뉴스(featured=1) 우선, 없으면 첫번째
+  const featured = news.find(n => String(n.featured) === '1') || news[0];
+  const rest = news.filter(n => n.id !== featured.id).slice(0, 4);
+  const fd = fmtDate(featured.date);
+
+  let html = `
+    <div class="news-featured" style="cursor:pointer;" onclick="openNewsModal(${featured.id})">
+      <div class="news-featured-img">📰</div>
+      <div class="news-featured-body">
+        <div class="news-meta">${featured.category || '뉴스'} · ${fd.full}</div>
+        <h3 class="news-title">${featured.title || ''}</h3>
+        <p class="news-excerpt">${featured.excerpt || ''}</p>
+        <span class="view-more" style="display:inline-block;margin-top:12px;">전체 보기</span>
+      </div>
+    </div>
+    <div class="news-list">`;
+
+  rest.forEach(n => {
+    const nd = fmtDate(n.date);
+    html += `
+      <div class="news-item" style="cursor:pointer;" onclick="openNewsModal(${n.id})">
+        <div class="ni-date"><div class="day">${nd.day}</div><div class="mon">${nd.mon}</div></div>
+        <div class="ni-body">
+          <div class="ni-cat">${n.category || ''}</div>
+          <div class="ni-title">${n.title || ''}</div>
+        </div>
+      </div>`;
+  });
+
+  html += `</div>`;
+  grid.innerHTML = html;
+}
+
+function openNewsModal(id) {
+  const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  const n = (d.news || []).find(x => x.id === id);
+  if (!n) return;
+  const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const p = (n.date || '').split('-');
+  const full = n.date ? n.date.replace(/-/g,'.') : '';
+  document.getElementById('newsModalMeta').textContent = `${n.category || '뉴스'} · ${full}`;
+  document.getElementById('newsModalTitle').textContent = n.title || '';
+  document.getElementById('newsModalExcerpt').textContent = n.excerpt || '';
+  const modal = document.getElementById('newsModal');
+  modal.style.display = 'flex';
+}
+
+function closeNewsModal() {
+  document.getElementById('newsModal').style.display = 'none';
+}
+
+document.getElementById('newsModal')?.addEventListener('click', function(e) {
+  if (e.target === this) closeNewsModal();
+});
+
 function renderMembers() {
   const data = getData();
   const members = data.members && data.members.length ? data.members : DEFAULT_MEMBERS;
@@ -1262,6 +1307,7 @@ function handleSubmit(btn) {
 document.addEventListener('DOMContentLoaded', () => {
   renderMembers();
   renderPublications(0);
+  renderNews();
 
   try {
     if (!firebaseConfig.apiKey || firebaseConfig.apiKey === 'YOUR_API_KEY') return;
@@ -1272,6 +1318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(snap.data()));
         renderMembers();
         renderPublications(_currentFilter || 0);
+        renderNews();
       }
     });
   } catch(e) { console.warn('Firebase 초기화 실패:', e); }
