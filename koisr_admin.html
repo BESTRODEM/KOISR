@@ -10,6 +10,11 @@
 <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
 <!-- EmailJS -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+  window.addEventListener('load', function() {
+    emailjs.init('-p8YIYhTcoui7mKDI');
+  });
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -1436,14 +1441,20 @@ function clearNewsForm(){
 }
 /* ── 공지 이메일 발송 ── */
 function sendNoticeEmail(params) {
-  emailjs.init('-p8YIYhTcoui7mKDI');
-  const users = getUsers();
-  const targets = users.filter(u => u.email);
+  // 구성원 프로필(members)에서 이메일 수집
+  const d = getDB();
+  const members = d.members || [];
+  const emailSet = new Set();
+  members.forEach(m => { if(m.email) emailSet.add(m.email.trim()); });
+  // 계정 목록에도 이메일이 있으면 추가
+  getUsers().forEach(u => { if(u.email) emailSet.add(u.email.trim()); });
+  const targets = [...emailSet];
   if (!targets.length) { console.log('이메일 주소가 등록된 구성원이 없습니다.'); return; }
-  targets.forEach(u => {
-    emailjs.send('service_uwycipj', 'template_z3qdxyb', { ...params, email: u.email })
-      .then(() => console.log('발송 완료:', u.email))
-      .catch(e => console.warn('발송 실패:', u.email, e));
+  console.log('발송 대상:', targets);
+  targets.forEach(email => {
+    emailjs.send('service_uwycipj', 'template_z3qdxyb', { ...params, email })
+      .then(() => console.log('발송 완료:', email))
+      .catch(e => console.warn('발송 실패:', email, e));
   });
 }
 
