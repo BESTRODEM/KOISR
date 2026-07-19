@@ -8,6 +8,8 @@
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
+<!-- EmailJS -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -517,6 +519,9 @@ textarea.form-control{resize:vertical;min-height:88px;}
               <textarea class="form-control" id="newsExcerpt" placeholder="공지 내용 요약"></textarea>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:10px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--gray-500);cursor:pointer;">
+                <input type="checkbox" id="newsNotify" style="width:15px;height:15px;accent-color:var(--green);"> 구성원 이메일 공지 발송
+              </label>
               <button class="btn btn-outline" onclick="clearNewsForm()">초기화</button>
               <button class="btn btn-success" onclick="saveNews()">뉴스 저장</button>
             </div>
@@ -560,6 +565,9 @@ textarea.form-control{resize:vertical;min-height:88px;}
               <textarea class="form-control" id="boardPostContent" rows="6" placeholder="게시물 내용을 입력하세요."></textarea>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:10px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--gray-500);cursor:pointer;">
+                <input type="checkbox" id="boardNotify" style="width:15px;height:15px;accent-color:var(--green);"> 구성원 이메일 공지 발송
+              </label>
               <button class="btn btn-outline" onclick="clearBoardForm()">초기화</button>
               <button class="btn btn-success" id="boardSaveBtn" onclick="savePost()">게시물 저장</button>
             </div>
@@ -1426,20 +1434,42 @@ function clearNewsForm(){
   document.getElementById('newsCategory').selectedIndex=0;
   document.getElementById('newsFeatured').selectedIndex=0;
 }
+/* ── 공지 이메일 발송 ── */
+function sendNoticeEmail(params) {
+  emailjs.init('-p8YIYhTcoui7mKDI');
+  const users = getUsers();
+  const targets = users.filter(u => u.email);
+  if (!targets.length) { console.log('이메일 주소가 등록된 구성원이 없습니다.'); return; }
+  targets.forEach(u => {
+    emailjs.send('service_uwycipj', 'template_z3qdxyb', { ...params, email: u.email })
+      .then(() => console.log('발송 완료:', u.email))
+      .catch(e => console.warn('발송 실패:', u.email, e));
+  });
+}
+
 function saveNews(){
   const title=document.getElementById('newsTitle').value.trim();
   if(!title){alert('제목을 입력하세요.');return;}
+  const notify = document.getElementById('newsNotify').checked;
   const d=getDB(); if(!d.news)d.news=[];
-  d.news.unshift({
+  const item = {
     id:nextId(d.news),title,
     date:document.getElementById('newsDate').value,
     category:document.getElementById('newsCategory').value,
     featured:document.getElementById('newsFeatured').value==='1',
     excerpt:document.getElementById('newsExcerpt').value.trim()
-  });
+  };
+  d.news.unshift(item);
   saveDB(d); clearNewsForm(); renderNewsTable();
-  showAlert('newsAlert','success','뉴스가 등록되었습니다.');
+  showAlert('newsAlert','success','뉴스가 등록되었습니다.' + (notify ? ' 이메일 발송 중...' : ''));
   renderDashboard();
+  if(notify) sendNoticeEmail({
+    notice_type: '뉴스',
+    notice_title: item.title,
+    notice_category: item.category,
+    notice_date: item.date,
+    notice_content: item.excerpt || ''
+  });
 }
 function renderNewsTable(){
   const d=getDB(); const news=d.news||[];
@@ -1486,13 +1516,16 @@ function savePost(){
 
   const d = getDB(); if(!d.board) d.board = [];
 
+  const notify = document.getElementById('boardNotify') && document.getElementById('boardNotify').checked;
+  const postDate = new Date().toISOString().slice(0,10);
+
   if(_editPostId !== null){
     const idx = d.board.findIndex(p=>p.id===_editPostId);
     if(idx>=0){
       d.board[idx].title   = title;
       d.board[idx].content = content;
       d.board[idx].category= cat;
-      d.board[idx].updated = new Date().toISOString().slice(0,10);
+      d.board[idx].updated = postDate;
     }
     showAlert('boardAlert','success','게시물이 수정되었습니다.');
   } else {
@@ -1502,9 +1535,18 @@ function savePost(){
       content,
       category: cat,
       author:   authorName,
-      date:     new Date().toISOString().slice(0,10)
+      date:     postDate
     });
     showAlert('boardAlert','success','게시물이 등록되었습니다.');
+    if(notify){
+      sendNoticeEmail({
+        notice_type:     '내부 공지',
+        notice_title:    title,
+        notice_category: cat,
+        notice_date:     postDate,
+        notice_content:  content.length > 200 ? content.slice(0,200) + '...' : content
+      });
+    }
   }
 
   saveDB(d);
